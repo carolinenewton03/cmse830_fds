@@ -1,0 +1,8 @@
+streamlit
+pdfplumber
+spacy
+pandas
+plotly
+pymysql
+yt_dlp
+streamlit-tags
