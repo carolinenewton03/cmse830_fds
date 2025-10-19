@@ -24,13 +24,12 @@ from target_roles import target_roles_required_skills, role_skills, role_descrip
 import firebase_admin
 from firebase_admin import credentials, firestore
 import json
-# Initialize Firebase
+
 if not firebase_admin._apps:
     firebase_config = {
         "type": st.secrets["FIREBASE"]["type"],
         "project_id": st.secrets["FIREBASE"]["project_id"],
         "private_key_id": st.secrets["FIREBASE"]["private_key_id"],
-        # 🔧 Ensure proper line breaks
         "private_key": st.secrets["FIREBASE"]["private_key"].replace("\\n", "\n"),
         "client_email": st.secrets["FIREBASE"]["client_email"],
         "client_id": st.secrets["FIREBASE"]["client_id"],
@@ -51,11 +50,19 @@ except OSError:
     st.warning(f"{model_name} not found. Please ensure it’s preinstalled.")
     nlp = None
 
-# Function to read and display PDF
+# Function to read and display PDF safely
 def show_pdf(file):
-   base64_pdf = base64.b64encode(file.read()).decode('utf-8')
-   pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
-   st.markdown(pdf_display, unsafe_allow_html=True)
+    file.seek(0)
+    base64_pdf = base64.b64encode(file.read()).decode('utf-8')
+    pdf_display = f'''
+        <iframe src="data:application/pdf;base64,{base64_pdf}"
+                width="100%" height="800"
+                type="application/pdf">
+        </iframe>
+    '''
+    st.markdown(pdf_display, unsafe_allow_html=True)
+
+    file.seek(0)
 
 # Extract text from PDF using pdfplumber
 def pdf_reader(file):
