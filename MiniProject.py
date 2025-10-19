@@ -386,6 +386,7 @@ def run():
         pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
         if pdf_file:
             show_pdf(pdf_file)
+            pdf_file.seek(0)
             resume_text = pdf_reader(pdf_file)
 
             if not is_resume(resume_text):
