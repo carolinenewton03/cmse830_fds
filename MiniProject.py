@@ -12,15 +12,17 @@ from streamlit_tags import st_tags
 from Courses import ds_course, web_course, android_course, ios_course, uiux_course, software_engineering_courses, resume_videos, interview_videos
 from Admin import admin_panel  # Import admin_panel from admin.py
 from target_roles import target_roles_required_skills, role_skills, role_descriptions
-#import os
 
-#os.system("python -m spacy download en_core_web_sm")
+# Load the English model
+# nlp = spacy.load("en_core_web_sm")
+
 model_name = "en_core_web_sm"
 try:
     nlp = spacy.load(model_name)
 except OSError:
     subprocess.run(["python", "-m", "spacy", "download", model_name])
     nlp = spacy.load(model_name)
+
 # Function to read and display PDF
 def show_pdf(file):
    base64_pdf = base64.b64encode(file.read()).decode('utf-8')
@@ -507,11 +509,6 @@ def run():
 
 if __name__ == "__main__":
    run()
-
-
-
-
-
 
 
 
