@@ -26,12 +26,12 @@ from firebase_admin import credentials, firestore
 import json
 # Initialize Firebase
 if not firebase_admin._apps:
-    # Streamlit secrets returns a ConfigProxy object -> convert to dict manually
     firebase_config = {
         "type": st.secrets["FIREBASE"]["type"],
         "project_id": st.secrets["FIREBASE"]["project_id"],
         "private_key_id": st.secrets["FIREBASE"]["private_key_id"],
-        "private_key": st.secrets["FIREBASE"]["private_key"],
+        # 🔧 Ensure proper line breaks
+        "private_key": st.secrets["FIREBASE"]["private_key"].replace("\\n", "\n"),
         "client_email": st.secrets["FIREBASE"]["client_email"],
         "client_id": st.secrets["FIREBASE"]["client_id"],
         "auth_uri": st.secrets["FIREBASE"]["auth_uri"],
@@ -40,10 +40,16 @@ if not firebase_admin._apps:
         "client_x509_cert_url": st.secrets["FIREBASE"]["client_x509_cert_url"],
         "universe_domain": st.secrets["FIREBASE"]["universe_domain"]
     }
-
     cred = credentials.Certificate(firebase_config)
     firebase_admin.initialize_app(cred)
 db = firestore.client()
+try:
+    test_ref = db.collection("connection_test")
+    test_ref.add({"status": "connected", "timestamp": pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')})
+    st.success("✅ Firestore connection successful!")
+except Exception as e:
+    st.error(f"❌ Firestore connection failed: {e}")
+
 
 # ✅ Load the English spaCy model safely
 model_name = "en_core_web_sm"
