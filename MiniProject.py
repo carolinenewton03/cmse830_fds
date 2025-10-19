@@ -452,7 +452,7 @@ def run():
                     }
 
                     users_ref.add(user_data)
-                    st.success("✅ Data successfully saved to Firebase Firestore!")
+                    #st.success("✅ Data successfully saved to Firebase Firestore!")
                 else:
                     st.error("Unable to extract basic info from resume.")
     elif choice == 'Admin':
