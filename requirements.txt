@@ -9,3 +9,4 @@ pandas
 plotly
 streamlit-tags
 yt_dlp
+pymysql
