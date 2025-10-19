@@ -388,6 +388,8 @@ def run():
             show_pdf(pdf_file)
             pdf_file.seek(0)
             resume_text = pdf_reader(pdf_file)
+            st.write("DEBUG: Extracted text preview:", resume_text[:500])
+
 
             if not is_resume(resume_text):
                 st.error("Uploaded file does not appear to be a resume. Please upload a valid resume.")
