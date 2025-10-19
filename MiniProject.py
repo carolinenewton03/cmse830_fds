@@ -357,170 +357,97 @@ def run():
 
 
    # MySQL Database Connection
-   connection = pymysql.connect(host='localhost', user='root', password='Carokutty12', database="sra")
+   #connection = pymysql.connect(host='localhost', user='root', password='Carokutty12', database="sra")
 
 
    try:
-       with connection.cursor() as cursor:
-           cursor.execute("""
-               CREATE TABLE IF NOT EXISTS user_data (
-                   ID INT AUTO_INCREMENT PRIMARY KEY,
-                   Name VARCHAR(100),
-                   Email_ID VARCHAR(50),
-                   resume_score VARCHAR(8),
-                   Timestamp VARCHAR(50),
-                   Page_no VARCHAR(5),
-                   Predicted_Field VARCHAR(25),
-                   User_level VARCHAR(30),
-                   Actual_skills VARCHAR(300),
-                   Recommended_skills VARCHAR(300),
-                   Recommended_courses VARCHAR(600)
-               )
-           """)
+    # ✅ Firestore Setup
+    users_ref = db.collection("user_data")
 
+    if choice == 'Normal User':
+        pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
+        if pdf_file:
+            show_pdf(pdf_file)
+            resume_text = pdf_reader(pdf_file)
 
-           if choice == 'Normal User':
-               pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
-               if pdf_file:
-                   show_pdf(pdf_file)
-                   resume_text = pdf_reader(pdf_file)
+            if not is_resume(resume_text):
+                st.error("Uploaded file does not appear to be a resume. Please upload a valid resume.")
+            else:
+                st.header("Resume Analysis")
+                st.success("Resume successfully read!")
+                st.text_area("Resume Text", value=resume_text, height=300)
 
+                basic_info = extract_basic_info(resume_text)
 
-                   if not is_resume(resume_text):
-                       st.error("Uploaded file does not appear to be a resume. Please upload a valid resume.")
-                       return
+                if basic_info:
+                    st.subheader("Basic Info")
+                    st.write(f"*Name*: {basic_info['name']}")
+                    st.write(f"*Email*: {basic_info['email']}")
+                    st.write(f"*Mobile Number*: {basic_info['mobile_number']}")
 
+                    if basic_info['name'] == "N/A":
+                        st.warning("Name could not be extracted from the resume.")
+                    if basic_info['mobile_number'] == "N/A":
+                        st.warning("Mobile number could not be extracted from the resume.")
 
-                   if resume_text:
-                       st.header("Resume Analysis")
-                       st.success("Resume successfully read!")
-                       st.text_area("Resume Text", value=resume_text, height=300)
+                    skills_list = [
+                        # (your full skill list here)
+                    ]
 
-                       basic_info = extract_basic_info(resume_text)
+                    relevant_text = extract_relevant_sections(resume_text)
+                    extracted_skills = extract_skills(relevant_text if relevant_text else resume_text, skills_list)
+                    role = st.selectbox("Select Role for Analysis", list(target_roles_required_skills.keys()))
 
-                       if basic_info:
-                        st.subheader("Basic Info")
-                        st.write(f"*Name*: {basic_info['name']}")
-                        st.write(f"*Email*: {basic_info['email']}")
-                        st.write(f"*Mobile Number*: {basic_info['mobile_number']}")
+                    st.write(role_descriptions.get(role, f"No description available for **{role}**."))
 
-                        if basic_info['name'] == "N/A":
-                            st.warning("Name could not be extracted from the resume.")
-                        if basic_info['mobile_number'] == "N/A":
-                            st.warning("Mobile number could not be extracted from the resume.")
-                   else:
-                        st.error("Unable to extract name, email, or phone number from the resume.")
-                        return  # 🛑 Stop if no basic info
-                   skills_list = [
-                     # General Programming & Development
-                    'Python', 'Java', 'C++', 'C#', 'JavaScript', 'HTML', 'CSS', 'SQL', 'Go', 'Ruby',
-                    'Swift', 'Kotlin', 'PHP', 'R', 'Perl', 'TypeScript', 'C', 'Rust', 'Scala', 'MATLAB',
-                    'Shell Scripting', 'Bash', 'PowerShell', 'VBA', 'Fortran', 'COBOL',
+                    required_skills = role_skills.get(role, [])
+                    matched_skills, match_score, missing_skills = match_skills_for_role(extracted_skills, role)
 
-                    # Web Development
-                    'HTML5', 'CSS3', 'Bootstrap', 'React.js', 'Angular.js', 'Vue.js', 'Node.js', 'Express.js',
-                    'Django', 'Flask', 'Laravel', 'Spring Boot', 'GraphQL', 'ASP.NET', 'Webpack', 'SASS',
+                    st.subheader("Skills Overview")
+                    st.write("Extracted Skills:", ", ".join(extracted_skills) if extracted_skills else "No skills found.")
+                    st.write("Matched Skills:", ", ".join(matched_skills))
+                    st.write("Missing Skills:", ", ".join(missing_skills))
+                    st.write(f"Skill Match Score: {match_score:.2f}%")
 
-                    # Databases
-                    'MySQL', 'PostgreSQL', 'MongoDB', 'SQLite', 'Oracle Database', 'Firebase', 'Cassandra',
-                    'Redis', 'Elasticsearch', 'MariaDB', 'CouchDB', 'DynamoDB', 'Neo4j',
+                    total_keywords = 20
+                    total_structure_criteria = 3
+                    resume_score = calculate_resume_score(basic_info, extracted_skills, total_keywords, total_structure_criteria)
+                    st.subheader("Resume Score")
+                    st.write(f"**{resume_score}**")
 
-                    # Machine Learning & AI
-                    'TensorFlow', 'Keras', 'PyTorch', 'scikit-learn', 'OpenCV', 'Pandas', 'NumPy',
-                    'Matplotlib', 'Seaborn', 'NLTK', 'Spacy', 'Hugging Face', 'SciPy', 'XGBoost',
-                    'LightGBM', 'PyCaret', 'Deep Learning', 'Reinforcement Learning', 'Neural Networks',
+                    experience_level = determine_level(resume_text, extracted_skills)
+                    st.subheader("Experience Level")
+                    st.write(f"Based on the analysis, you are categorized as: **{experience_level}**")
 
-                    # Data Analysis & Visualization
-                    'Tableau', 'Power BI', 'Excel', 'Google Sheets', 'Looker', 'D3.js', 'Altair',
-                    'Plotly', 'Dash', 'Data Wrangling', 'Data Cleaning', 'ETL',
+                    rec_courses = course_recommender(extracted_skills, role)
+                    display_videos()
 
-                    # DevOps & Cloud Computing
-                    'AWS', 'Azure', 'Google Cloud', 'Heroku', 'Docker', 'Kubernetes', 'Jenkins',
-                    'Terraform', 'Ansible', 'Chef', 'Puppet', 'Nagios', 'GitHub Actions', 'CI/CD',
-                    'CloudFormation', 'Lambda', 'Cloud Functions',
+                    timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
 
-                    # Cybersecurity
-                    'Penetration Testing', 'Ethical Hacking', 'Network Security', 'Cryptography',
-                    'Cybersecurity Frameworks', 'Nmap', 'Wireshark', 'Metasploit', 'OWASP',
-                    'ISO 27001', 'Firewall Configuration',
+                    # ✅ Save data to Firestore
+                    user_data = {
+                        "Name": basic_info['name'],
+                        "Email_ID": basic_info['email'],
+                        "resume_score": resume_score,
+                        "matching_score": match_score,
+                        "Timestamp": timestamp,
+                        "Page_no": "N/A",
+                        "Predicted_Field": role,
+                        "User_level": experience_level,
+                        "Actual_skills": extracted_skills,
+                        "Recommended_skills": list(set(matched_skills)),
+                        "Recommended_courses": rec_courses
+                    }
 
-                    # Mobile Development
-                    'Android', 'iOS', 'Flutter', 'React Native', 'SwiftUI', 'Xamarin',
-                    'Kotlin Multiplatform', 'Cordova', 'Ionic',
+                    users_ref.add(user_data)
+                    st.success("✅ Data successfully saved to Firebase Firestore!")
+                else:
+                    st.error("Unable to extract basic info from resume.")
+    elif choice == 'Admin':
+        admin_panel(db)
 
-                    # Game Development
-                    'Unity', 'Unreal Engine', 'Game Physics', 'Game AI', 'Cocos2d', 'CryEngine',
-
-                    # Testing & QA
-                    'Selenium', 'Cypress', 'Appium', 'JUnit', 'Mockito', 'Postman', 'SoapUI',
-                    'LoadRunner', 'JMeter', 'QA Automation', 'Manual Testing',
-
-                    # Operating Systems & Networking
-                    'Linux', 'Windows Server', 'Unix', 'MacOS', 'TCP/IP', 'UDP', 'DNS', 'DHCP',
-                    'Active Directory', 'VPN', 'SSH', 'FTP', 'Network Protocols',
-
-                    # Soft Skills
-                    'Team Collaboration', 'Project Management', 'Agile Methodologies', 'Scrum',
-                    'Time Management', 'Communication Skills', 'Critical Thinking', 'Problem Solving',
-
-                    # Emerging Technologies
-                    'Blockchain', 'Ethereum', 'Solidity', 'Smart Contracts', 'Web3.js',
-                    'Internet of Things (IoT)', 'Raspberry Pi', 'Arduino', 'Edge Computing',
-
-                    # General Skills
-                    'Version Control', 'Git', 'GitHub', 'GitLab', 'Bitbucket', 'JIRA', 'Confluence',
-                    'Agile Development', 'Kanban', 'Design Patterns', 'Object-Oriented Programming',
-                    'Functional Programming', 'Data Structures', 'Algorithms'
-                ]
-
-                   relevant_text = extract_relevant_sections(resume_text)
-                   extracted_skills = extract_skills(relevant_text if relevant_text else resume_text, skills_list)
-                   role = st.selectbox("Select Role for Analysis", list(target_roles_required_skills.keys()))
-
-                   st.write(role_descriptions.get(role, f"No description available for **{role}**."))
-
-                   required_skills = role_skills.get(role, [])
-
-
-
-                   matched_skills, match_score, missing_skills = match_skills_for_role(extracted_skills, role)
-
-
-                   st.subheader("Skills Overview")
-                   st.write("Extracted Skills:", ", ".join(extracted_skills) if extracted_skills else "No skills found.")
-                   st.write("Matched Skills:", ", ".join(matched_skills))
-                   st.write("Missing Skills:", ", ".join(missing_skills))
-                   st.write(f"Skill Match Score: {match_score:.2f}%")
-
-
-                   total_keywords = 20
-                   total_structure_criteria = 3
-                   resume_score = calculate_resume_score(basic_info, extracted_skills, total_keywords, total_structure_criteria)
-                   st.subheader("Resume Score")
-                   st.write(f"**{resume_score}**")
-
-
-                   experience_level = determine_level(resume_text, extracted_skills)
-                   st.subheader("Experience Level")
-                   st.write(f"Based on the analysis, you are categorized as: **{experience_level}**")
-
-
-                   rec_courses = course_recommender(extracted_skills, role)
-                   display_videos()
-
-
-                   timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
-                   cursor.execute(
-                        "INSERT INTO user_data (Name, Email_ID, resume_score, matching_score, Timestamp, Page_no, Predicted_Field, User_level, Actual_skills, Recommended_skills, Recommended_courses) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                           (basic_info['name'], basic_info['email'], resume_score, match_score, timestamp, "N/A", role,
-                            experience_level,
-                            ", ".join(extracted_skills), ", ".join(set(matched_skills)), ", ".join(rec_courses))
-                       )
-                   connection.commit()
-           elif choice == 'Admin':
-               admin_panel(cursor)  # Call the admin panel function from admin.py
-   finally:
-       connection.close()
+   except Exception as e:
+    st.error(f"An error occurred: {e}")
 
 
 if __name__ == "__main__":
