@@ -51,18 +51,19 @@ except OSError:
     nlp = None
 
 # Function to read and display PDF safely
-def show_pdf(file):
-    # Read and encode the uploaded PDF
-    base64_pdf = base64.b64encode(file.read()).decode("utf-8")
+def show_pdf(uploaded_file):
+    # Go back to the start of the file (important!)
+    uploaded_file.seek(0)
+    base64_pdf = base64.b64encode(uploaded_file.read()).decode("utf-8")
 
-    # Embed the PDF directly in the app (below the uploader)
+    # Use <embed> — better browser compatibility for inline display
     pdf_display = f"""
-    <embed
-        src="data:application/pdf;base64,{base64_pdf}"
-        width="700"
-        height="1000"
-        type="application/pdf"
-    >
+        <embed
+            src="data:application/pdf;base64,{base64_pdf}"
+            width="700"
+            height="1000"
+            type="application/pdf"
+        >
     """
     st.markdown(pdf_display, unsafe_allow_html=True)
 
