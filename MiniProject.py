@@ -23,10 +23,11 @@ from Admin import admin_panel  # Import admin_panel from admin.py
 from target_roles import target_roles_required_skills, role_skills, role_descriptions
 import firebase_admin
 from firebase_admin import credentials, firestore
-
+import json
 # Initialize Firebase
 if not firebase_admin._apps:
-    cred = credentials.Certificate("resume-analyzer-firebase-adminsdk.json")  # local testing
+    firebase_config = st.secrets["FIREBASE"]
+    cred = credentials.Certificate(firebase_config)
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
