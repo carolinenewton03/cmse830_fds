@@ -52,17 +52,16 @@ except OSError:
 
 # Function to read and display PDF safely
 def show_pdf(file):
+    # Reset file pointer to start (important if file was read before)
     file.seek(0)
-    base64_pdf = base64.b64encode(file.read()).decode('utf-8')
-    pdf_display = f'''
-        <iframe src="data:application/pdf;base64,{base64_pdf}"
-                width="100%" height="800"
-                type="application/pdf">
-        </iframe>
-    '''
-    st.markdown(pdf_display, unsafe_allow_html=True)
+    pdf_bytes = file.read()
+    st.download_button(
+        label="📄 Open PDF in New Tab",
+        data=pdf_bytes,
+        file_name=file.name,
+        mime="application/pdf"
+    )
 
-    file.seek(0)
 
 # Extract text from PDF using pdfplumber
 def pdf_reader(file):
