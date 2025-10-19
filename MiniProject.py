@@ -43,14 +43,6 @@ if not firebase_admin._apps:
     cred = credentials.Certificate(firebase_config)
     firebase_admin.initialize_app(cred)
 db = firestore.client()
-try:
-    test_ref = db.collection("connection_test")
-    test_ref.add({"status": "connected", "timestamp": pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')})
-    st.success("✅ Firestore connection successful!")
-except Exception as e:
-    st.error(f"❌ Firestore connection failed: {e}")
-
-
 # ✅ Load the English spaCy model safely
 model_name = "en_core_web_sm"
 try:
