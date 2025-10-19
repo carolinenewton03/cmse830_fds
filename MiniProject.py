@@ -24,6 +24,7 @@ from target_roles import target_roles_required_skills, role_skills, role_descrip
 import firebase_admin
 from firebase_admin import credentials, firestore
 import json
+import tempfile
 
 if not firebase_admin._apps:
     firebase_config = {
@@ -51,22 +52,17 @@ except OSError:
     nlp = None
 
 # Function to read and display PDF safely
-def show_pdf(uploaded_file):
-    # Go back to the start of the file (important!)
-    uploaded_file.seek(0)
-    base64_pdf = base64.b64encode(uploaded_file.read()).decode("utf-8")
+def show_pdf(file):
+    # Save PDF temporarily
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(file.read())
+        tmp_path = tmp_file.name
 
-    # Use <embed> — better browser compatibility for inline display
-    pdf_display = f"""
-        <embed
-            src="data:application/pdf;base64,{base64_pdf}"
-            width="700"
-            height="1000"
-            type="application/pdf"
-        >
-    """
-    st.markdown(pdf_display, unsafe_allow_html=True)
-
+    # Embed safely using Streamlit iframe
+    st.markdown(
+        f'<iframe src="file://{tmp_path}" width="700" height="1000"></iframe>',
+        unsafe_allow_html=True
+    )
 
 # Extract text from PDF using pdfplumber
 def pdf_reader(file):
