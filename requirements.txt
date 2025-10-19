@@ -2,11 +2,14 @@ pip>=24.0
 setuptools>=68.0
 wheel
 
+# Core dependencies
 streamlit
 pdfplumber
 spacy==3.8.7
 pandas
-plotly
-streamlit-tags
 yt_dlp
 pymysql
+streamlit-tags
+
+# Optional (good practice)
+plotly
