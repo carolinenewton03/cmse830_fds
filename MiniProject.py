@@ -9,19 +9,26 @@ import re
 import spacy
 from spacy.matcher import PhraseMatcher
 from streamlit_tags import st_tags
-from Courses import ds_course, web_course, android_course, ios_course, uiux_course, software_engineering_courses, resume_videos, interview_videos
+from Courses import (
+    ds_course,
+    web_course,
+    android_course,
+    ios_course,
+    uiux_course,
+    software_engineering_courses,
+    resume_videos,
+    interview_videos,
+)
 from Admin import admin_panel  # Import admin_panel from admin.py
 from target_roles import target_roles_required_skills, role_skills, role_descriptions
 
-# Load the English model
-# nlp = spacy.load("en_core_web_sm")
-
+# ✅ Load the English spaCy model safely
 model_name = "en_core_web_sm"
 try:
     nlp = spacy.load(model_name)
 except OSError:
-    subprocess.run(["python", "-m", "spacy", "download", model_name])
-    nlp = spacy.load(model_name)
+    st.warning(f"{model_name} not found. Please ensure it’s preinstalled.")
+    nlp = None
 
 # Function to read and display PDF
 def show_pdf(file):
