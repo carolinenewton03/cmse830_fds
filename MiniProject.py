@@ -53,16 +53,13 @@ except OSError:
 
 # Function to read and display PDF safely
 def show_pdf(file):
-    # Save PDF temporarily
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-        tmp_file.write(file.read())
-        tmp_path = tmp_file.name
+    base64_pdf = base64.b64encode(file.read()).decode("utf-8")
+    pdf_display = f"""
+    <embed src="data:application/pdf;base64,{base64_pdf}" 
+           width="700" height="1000" type="application/pdf">
+    """
+    st.markdown(pdf_display, unsafe_allow_html=True)
 
-    # Embed safely using Streamlit iframe
-    st.markdown(
-        f'<iframe src="file://{tmp_path}" width="700" height="1000"></iframe>',
-        unsafe_allow_html=True
-    )
 
 # Extract text from PDF using pdfplumber
 def pdf_reader(file):
