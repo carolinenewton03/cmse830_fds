@@ -21,6 +21,15 @@ from Courses import (
 )
 from Admin import admin_panel  # Import admin_panel from admin.py
 from target_roles import target_roles_required_skills, role_skills, role_descriptions
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+# Initialize Firebase
+if not firebase_admin._apps:
+    cred = credentials.Certificate("resume-analyzer-firebase-adminsdk.json")  # local testing
+    firebase_admin.initialize_app(cred)
+
+db = firestore.client()
 
 # ✅ Load the English spaCy model safely
 model_name = "en_core_web_sm"
