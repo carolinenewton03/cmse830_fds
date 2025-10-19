@@ -4,8 +4,7 @@ wheel
 
 streamlit
 pdfplumber
-spacy==3.7.2 --only-binary=:all:
+spacy==3.8.7
 pandas
 plotly
-pymysql
 streamlit-tags
