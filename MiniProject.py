@@ -53,13 +53,15 @@ except OSError:
 
 # Function to read and display PDF safely
 def show_pdf(file):
+    # Read file and encode to base64
     base64_pdf = base64.b64encode(file.read()).decode("utf-8")
+
+    # Embed PDF using iframe instead of <embed>
     pdf_display = f"""
-    <embed src="data:application/pdf;base64,{base64_pdf}" 
-           width="700" height="1000" type="application/pdf">
+    <iframe src="data:application/pdf;base64,{base64_pdf}" 
+            width="700" height="1000" type="application/pdf"></iframe>
     """
     st.markdown(pdf_display, unsafe_allow_html=True)
-
 
 # Extract text from PDF using pdfplumber
 def pdf_reader(file):
