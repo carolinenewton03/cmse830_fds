@@ -399,7 +399,7 @@ def run():
             show_pdf(pdf_file)
             pdf_file.seek(0)
             resume_text = pdf_reader(pdf_file)
-            st.text_area("DEBUG - Resume Text Preview", resume_text[:2000])
+            #st.text_area("DEBUG - Resume Text Preview", resume_text[:2000])
 
 
 
