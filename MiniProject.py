@@ -25,6 +25,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import json
 import tempfile
+import unicodedata
 
 if not firebase_admin._apps:
     firebase_config = {
