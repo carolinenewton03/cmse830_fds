@@ -239,7 +239,7 @@ def extract_skills(resume_text, skills_list):
             extracted.append(skill)
 
     return sorted(list(set(extracted)))
-st.write("DEBUG - Found these in text:", extracted_skills[:30])
+st.write("DEBUG - Found these in text:", extract_skills[:30])
 
 
 # Function to determine experience level (Fresher, Intermediate, Advanced)
