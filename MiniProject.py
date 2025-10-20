@@ -480,6 +480,7 @@ def run():
                     extracted_skills = extract_skills(relevant_text if relevant_text else resume_text, skills_list)
 
                     # --- RENDER ROLE SELECTION & ANALYSIS ---
+                    st.header("Role Analysis")
                     role = st.selectbox("Select Target Role for Analysis", list(target_roles_required_skills.keys()))
                     st.write(role_descriptions.get(role, f"No description available for **{role}**."))
 
