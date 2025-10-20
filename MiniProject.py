@@ -54,23 +54,42 @@ except OSError:
 matcher = PhraseMatcher(nlp.vocab, attr="LOWER") 
 # Function to read and display PDF safely
 def show_pdf(file):
-    # Read file and encode to base64
-    base64_pdf = base64.b64encode(file.read()).decode("utf-8")
-
-    # Embed PDF using iframe instead of <embed>
-    pdf_display = f"""
-    <iframe src="data:application/pdf;base64,{base64_pdf}" 
-            width="700" height="1000" type="application/pdf"></iframe>
-    """
+    # ensure pointer at start, read, then reset pointer so file can be reused
+    try:
+        file.seek(0)
+    except Exception:
+        pass
+    base64_pdf = base64.b64encode(file.read()).decode('utf-8')
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
     st.markdown(pdf_display, unsafe_allow_html=True)
+    try:
+        file.seek(0)
+    except Exception:
+        pass
 
 # Extract text from PDF using pdfplumber
 def pdf_reader(file):
-   with pdfplumber.open(file) as pdf:
-       text = ""
-       for page in pdf.pages:
-           text += page.extract_text() + '\n'
-   return text
+    try:
+        file.seek(0)
+    except Exception:
+        pass
+
+    with pdfplumber.open(file) as pdf:
+        text = ""
+        for page in pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + '\n'
+    # final fallback: if empty, attempt reading raw bytes decode
+    if not text:
+        try:
+            file.seek(0)
+            raw = file.read()
+            text = raw.decode('utf-8', errors='ignore')
+        except Exception:
+            pass
+    return text
+
 
 def extract_basic_info(text):
     import re
@@ -225,22 +244,29 @@ def extract_relevant_sections(text):
 
 
 def extract_skills(resume_text, skills_list):
-    # Normalize weird unicode and lowercase
-    text = unicodedata.normalize("NFKD", resume_text).encode("ascii", "ignore").decode("utf-8").lower()
-    # Replace newlines, tabs, and punctuation with spaces
-    text = re.sub(r'[^a-z0-9\s+]', ' ', text)
-    text = re.sub(r'\s+', ' ', text)
+    # Normalize unicode -> ascii, lowercase, remove punctuation-ish chars
+    txt = unicodedata.normalize("NFKD", resume_text).encode("ascii", "ignore").decode("utf-8").lower()
+    # replace non-alphanum (but keep plus and #) with space
+    txt = re.sub(r'[^a-z0-9\+#\s]', ' ', txt)
+    txt = re.sub(r'\s+', ' ', txt).strip()
 
-    extracted = []
-    for skill in skills_list:
-        skill_clean = skill.lower().strip()
-        # Match even if words are separated by multiple spaces or linebreaks
-        pattern = r'\b' + re.sub(r'\s+', r'\\s+', re.escape(skill_clean)) + r'\b'
-        if re.search(pattern, text):
-            extracted.append(skill)
+    found = set()
+    # Build a quick token list for n-gram searching
+    tokens = txt.split()
 
-    return sorted(list(set(extracted)))
+    # Pre-normalize skills: keep original casing for output, but use lowercase for matching
+    normalized_skills = [(skill, skill.lower().strip()) for skill in skills_list]
 
+    # For multi-word skills, search using regex that tolerates multiple spaces
+    for original_skill, skill_low in normalized_skills:
+        # create safe regex for multiword matches (allow any whitespace between words)
+        pattern = r'\b' + re.sub(r'\s+', r'\\s+', re.escape(skill_low)) + r'\b'
+        if re.search(pattern, txt):
+            found.add(original_skill)
+
+    # Extra: attempt to match common abbreviations / variants (SQL -> sql, power bi -> powerbi)
+    # (Add more rules here if you want)
+    return sorted(found)
 
 # Function to determine experience level (Fresher, Intermediate, Advanced)
 def determine_level(text, skills):
