@@ -30,7 +30,7 @@ import tempfile
 import unicodedata
 
 # ----------------------------------------------------------------------
-# FIREBASE/SPACY SETUP (Remains unchanged)
+# FIREBASE/SPACY SETUP 
 # ----------------------------------------------------------------------
 if not firebase_admin._apps:
     firebase_config = {
@@ -59,10 +59,11 @@ except OSError:
 matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
 
 # ----------------------------------------------------------------------
-# UTILITY FUNCTIONS (Remains largely unchanged)
+# UTILITY FUNCTIONS
 # ----------------------------------------------------------------------
 
 def show_pdf(file):
+    # ensure pointer at start, read, then reset pointer so file can be reused
     try:
         file.seek(0)
     except Exception:
@@ -143,7 +144,6 @@ def calculate_resume_score(basic_info, extracted_skills, total_keywords, total_s
   return normalized_score
 
 def fetch_yt_thumbnail(link):
-    # This function remains the same, assuming it's working for video display
     try:
         if "youtube.com/watch?v=" in link:
             video_id = link.split("v=")[-1].split("&")[0]
@@ -298,7 +298,7 @@ def is_resume(text):
 
 
 # ----------------------------------------------------------------------
-# NEW VISUALIZATION FUNCTIONS FOR NORMAL USER
+# VISUALIZATION FUNCTIONS FOR NORMAL USER
 # ----------------------------------------------------------------------
 
 def display_score_gauge(score):
@@ -406,7 +406,7 @@ def run():
                     required_skills = role_skills.get(role, [])
                     matched_skills, match_score, missing_skills = match_skills_for_role(extracted_skills, role)
                     
-                    # CORRECTION APPLIED HERE: Pass extracted_skills list correctly as the second positional argument
+                    # FIX: Correctly call determine_level with positional arguments
                     experience_level = determine_level(resume_text, extracted_skills) 
 
                     total_keywords = 20
@@ -444,6 +444,18 @@ def run():
                     display_videos()
 
                     timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # --------------------------------------------------------
+                    # NEW REQUIREMENT: Re-insert Extracted Text and PDF Viewer
+                    # --------------------------------------------------------
+                    st.markdown("---")
+                    st.subheader("Extracted Resume Text Preview")
+                    st.text_area("Resume Text", value=resume_text, height=300, help="This is the raw text extracted from your PDF that the analyzer is using.")
+
+                    st.subheader("Original PDF Document")
+                    show_pdf(pdf_file)
+                    st.markdown("---")
+                    # --------------------------------------------------------
 
                     # ✅ Save data to Firestore
                     user_data = {
