@@ -244,30 +244,21 @@ def extract_relevant_sections(text):
 
 
 def extract_skills(resume_text, skills_list):
-    # Normalize unicode -> ascii, lowercase, remove punctuation-ish chars
-    txt = unicodedata.normalize("NFKD", resume_text).encode("ascii", "ignore").decode("utf-8").lower()
-    # replace non-alphanum (but keep plus and #) with space
-    txt = re.sub(r'[^a-z0-9\+#\s]', ' ', txt)
-    txt = re.sub(r'\s+', ' ', txt).strip()
+    # Normalize text
+    text = unicodedata.normalize("NFKD", resume_text).encode("ascii", "ignore").decode("utf-8").lower()
+    text = re.sub(r'[^a-z0-9\s+]', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
 
-    found = set()
-    # Build a quick token list for n-gram searching
-    tokens = txt.split()
+    extracted = set()
 
-    # Pre-normalize skills: keep original casing for output, but use lowercase for matching
-    normalized_skills = [(skill, skill.lower().strip()) for skill in skills_list]
+    for skill in skills_list:
+        skill_low = skill.lower().replace(" ", "")
+        # remove spaces from text for loose matching
+        text_no_space = text.replace(" ", "")
+        if skill_low in text_no_space:
+            extracted.add(skill)
 
-    # For multi-word skills, search using regex that tolerates multiple spaces
-    for original_skill, skill_low in normalized_skills:
-        # create safe regex for multiword matches (allow any whitespace between words)
-        pattern = r'\b' + re.sub(r'\s+', r'\\s+', re.escape(skill_low)) + r'\b'
-        if re.search(pattern, txt):
-            found.add(original_skill)
-
-    # Extra: attempt to match common abbreviations / variants (SQL -> sql, power bi -> powerbi)
-    # (Add more rules here if you want)
-    return sorted(found)
-
+    return sorted(list(extracted))
 # Function to determine experience level (Fresher, Intermediate, Advanced)
 def determine_level(text, skills):
     import re
@@ -407,6 +398,8 @@ def run():
             show_pdf(pdf_file)
             pdf_file.seek(0)
             resume_text = pdf_reader(pdf_file)
+            st.text_area("DEBUG - Resume Text Preview", resume_text[:2000])
+
 
 
             if not is_resume(resume_text):
