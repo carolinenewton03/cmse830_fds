@@ -224,20 +224,23 @@ def extract_relevant_sections(text):
 
 
 def extract_skills(resume_text, skills_list):
-    # Clean and normalize text
-    text = resume_text.lower()
-    text = re.sub(r'[^a-z0-9+.\s]', ' ', text)  # remove punctuation
+    # Normalize weird unicode and lowercase
+    text = unicodedata.normalize("NFKD", resume_text).encode("ascii", "ignore").decode("utf-8").lower()
+    # Replace newlines, tabs, and punctuation with spaces
+    text = re.sub(r'[^a-z0-9\s+]', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
 
     extracted = []
     for skill in skills_list:
-        # Allow multi-word and case-insensitive matches
-        pattern = r'\b' + re.escape(skill.lower()) + r'\b'
+        skill_clean = skill.lower().strip()
+        # Match even if words are separated by multiple spaces or linebreaks
+        pattern = r'\b' + re.sub(r'\s+', r'\\s+', re.escape(skill_clean)) + r'\b'
         if re.search(pattern, text):
             extracted.append(skill)
 
-    # Remove duplicates and return
-    extracted = list(set(extracted))
-    return extracted
+    return sorted(list(set(extracted)))
+st.write("DEBUG - Found these in text:", extracted_skills[:30])
+
 
 # Function to determine experience level (Fresher, Intermediate, Advanced)
 def determine_level(text, skills):
