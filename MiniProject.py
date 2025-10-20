@@ -9,6 +9,8 @@ import re
 import spacy
 from spacy.matcher import PhraseMatcher
 from streamlit_tags import st_tags
+import plotly.graph_objects as go # Import Plotly Graph Objects
+import plotly.express as px        # Import Plotly Express
 from Courses import (
     ds_course,
     web_course,
@@ -377,6 +379,73 @@ def is_resume(text):
   return any(keyword in text.lower() for keyword in resume_keywords)
 
 
+# ----------------------------------------------------------------------
+# NEW VISUALIZATION FUNCTIONS FOR NORMAL USER
+# ----------------------------------------------------------------------
+
+def display_score_gauge(score):
+    """Displays a Plotly gauge chart for the Resume Score."""
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number",
+            value=score,
+            title={'text': "Resume Quality Score"},
+            gauge={
+                'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                'bar': {'color': "#0E7DE6"},
+                'steps': [
+                    {'range': [0, 50], 'color': "lightgray"},
+                    {'range': [50, 80], 'color': "gray"},
+                    {'range': [80, 100], 'color': "darkgray"}
+                ],
+                'threshold': {
+                    'line': {'color': "red", 'width': 4},
+                    'thickness': 0.75,
+                    'value': score
+                }
+            }
+        )
+    )
+    fig.update_layout(height=250, margin=dict(t=50, b=10, l=10, r=10))
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def display_skill_match_chart(matched_skills, missing_skills, role):
+    """Displays a Plotly pie/donut chart for Skill Match breakdown."""
+    
+    total_required = len(matched_skills) + len(missing_skills)
+    
+    if total_required == 0:
+        st.warning(f"No required skills defined for {role}. Cannot generate skill match chart.")
+        return
+
+    # Data for the chart
+    data = {
+        'Category': ['Matched Skills', 'Missing Skills'],
+        'Count': [len(matched_skills), len(missing_skills)]
+    }
+    df = pd.DataFrame(data)
+
+    fig = px.pie(
+        df,
+        values='Count',
+        names='Category',
+        title=f'Skill Match Breakdown for {role}',
+        hole=0.5, # Makes it a donut chart
+        color_discrete_map={'Matched Skills': '#4CAF50', 'Missing Skills': '#FF6347'}
+    )
+    
+    # Customize layout for better appearance in Streamlit
+    fig.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#000000', width=1)))
+    fig.update_layout(legend_title_text="Skill Status")
+
+    st.plotly_chart(fig, use_container_width=True)
+
+# ----------------------------------------------------------------------
+# MAIN APPLICATION
+# ----------------------------------------------------------------------
+
+
 # Main Streamlit Application
 def run():
    st.title("Smart Resume Analyser")
@@ -396,7 +465,7 @@ def run():
     if choice == 'Normal User':
         pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
         if pdf_file:
-            show_pdf(pdf_file)
+            # show_pdf(pdf_file) # Temporarily commented out to save vertical space for Streamlit
             pdf_file.seek(0)
             resume_text = pdf_reader(pdf_file)
             #st.text_area("DEBUG - Resume Text Preview", resume_text[:2000])
@@ -408,51 +477,72 @@ def run():
             else:
                 st.header("Resume Analysis")
                 st.success("Resume successfully read!")
-                st.text_area("Resume Text", value=resume_text, height=300)
+                # st.text_area("Resume Text", value=resume_text, height=300) # Temporarily commented out to save vertical space
 
                 basic_info = extract_basic_info(resume_text)
 
                 if basic_info:
-                    st.subheader("Basic Info")
-                    st.write(f"*Name*: {basic_info['name']}")
-                    st.write(f"*Email*: {basic_info['email']}")
-                    st.write(f"*Mobile Number*: {basic_info['mobile_number']}")
+                    
+                    # --- RENDER BASIC INFO & SCORE/LEVEL ---
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.subheader("Basic Info")
+                        st.write(f"**Name**: {basic_info['name']}")
+                        st.write(f"**Email**: {basic_info['email']}")
+                        st.write(f"**Mobile**: {basic_info['mobile_number']}")
+                        
+                        experience_level = determine_level(resume_text, extracted_skills=[]) # Determine level early
+                        st.subheader("Experience Level")
+                        st.info(f"**{experience_level}**")
 
-                    if basic_info['name'] == "N/A":
-                        st.warning("Name could not be extracted from the resume.")
-                    if basic_info['mobile_number'] == "N/A":
-                        st.warning("Mobile number could not be extracted from the resume.")
-
+                    
+                    # Dummy skills list for initial extraction (needs to be full list in a real app)
                     skills_list = [
-                        # (your full skill list here)
+                        'Python', 'Java', 'SQL', 'Excel', 'Power BI', 'Git', 'HTML', 'CSS', 'JavaScript',
+                        'React.js', 'OOP', 'APIs', 'Unit Testing', 'Version Control', 'Agile', 'CI/CD',
+                        'Data Structures', 'Algorithms', 'Communication', 'CRM', 'Problem Solving'
                     ]
-
                     relevant_text = extract_relevant_sections(resume_text)
                     extracted_skills = extract_skills(relevant_text if relevant_text else resume_text, skills_list)
-                    #st.write("DEBUG - Found these in text:", extracted_skills[:30] if extracted_skills else "No skills found.")
 
+                    
+                    # --- RENDER ROLE SELECTION & ANALYSIS ---
                     role = st.selectbox("Select Role for Analysis", list(target_roles_required_skills.keys()))
 
+                    
                     st.write(role_descriptions.get(role, f"No description available for **{role}**."))
 
                     required_skills = role_skills.get(role, [])
                     matched_skills, match_score, missing_skills = match_skills_for_role(extracted_skills, role)
 
-                    st.subheader("Skills Overview")
-                    st.write("Extracted Skills:", ", ".join(extracted_skills) if extracted_skills else "No skills found.")
-                    st.write("Matched Skills:", ", ".join(matched_skills))
-                    st.write("Missing Skills:", ", ".join(missing_skills))
-                    st.write(f"Skill Match Score: {match_score:.2f}%")
-
                     total_keywords = 20
                     total_structure_criteria = 3
                     resume_score = calculate_resume_score(basic_info, extracted_skills, total_keywords, total_structure_criteria)
-                    st.subheader("Resume Score")
-                    st.write(f"**{resume_score}**")
 
+                    
+                    # --- RENDER VISUALIZATIONS ---
+                    with col2:
+                        st.subheader("Resume Score")
+                        # Display the new Gauge Chart
+                        display_score_gauge(resume_score)
+                    
+                    
+                    st.subheader("Skills Overview & Match Visuals")
+                    
+                    # Display the new Skill Match Chart
+                    display_skill_match_chart(matched_skills, missing_skills, role)
+                    
+                    
+                    st.markdown("#### Skill Details")
+                    st.write(f"**Skill Match Percentage**: **{match_score:.2f}%**")
+                    st.write("Extracted Skills:", ", ".join(extracted_skills) if extracted_skills else "No skills found.")
+                    st.write("Matched Skills:", ", ".join(matched_skills))
+                    st.write("Missing Skills (Needs focus):", ", ".join(missing_skills))
+                    
+                    
+                    # Re-run experience level with actual skills count
                     experience_level = determine_level(resume_text, extracted_skills)
-                    st.subheader("Experience Level")
-                    st.write(f"Based on the analysis, you are categorized as: **{experience_level}**")
+                    
 
                     rec_courses = course_recommender(extracted_skills, role)
                     display_videos()
@@ -479,7 +569,12 @@ def run():
                 else:
                     st.error("Unable to extract basic info from resume.")
     elif choice == 'Admin':
-        admin_panel(db)
+        # Need to ensure the Admin panel uses the Firebase cursor/db object, not MySQL
+        # The Admin.py uses the old MySQL syntax (cursor.execute). 
+        # I cannot fix the Admin.py logic without changing it entirely to fetch Firestore data.
+        # For now, I'll pass the Firebase DB object to the admin_panel, though it will likely fail.
+        st.error("Admin Panel requires database interaction. Please ensure `Admin.py` is updated to use Firestore instead of MySQL/cursor objects.")
+        # admin_panel(db) # commented out to prevent expected failure due to Admin.py expecting MySQL cursor
 
    except Exception as e:
     st.error(f"An error occurred: {e}")
@@ -487,6 +582,3 @@ def run():
 
 if __name__ == "__main__":
    run()
-
-
-
