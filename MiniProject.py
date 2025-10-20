@@ -9,8 +9,8 @@ import re
 import spacy
 from spacy.matcher import PhraseMatcher
 from streamlit_tags import st_tags
-import plotly.graph_objects as go # Import Plotly Graph Objects for the Gauge
-import plotly.express as px        # Import Plotly Express for the Pie/Donut
+import plotly.graph_objects as go
+import plotly.express as px
 from Courses import (
     ds_course,
     web_course,
@@ -116,7 +116,6 @@ def extract_basic_info(text):
             break
             
     # 1. Phone Number Detection: Use a comprehensive regex to find potential matches
-    # This pattern covers (XXX) XXX-XXXX, XXX-XXX-XXXX, +X XXX XXX XXXX, and 10 digit sequences
     phone_pattern = re.compile(
         r'(\+?\d{1,3}[\s\-\.]?\(?\d{1,4}\)?[\s\-\.]?\d{3,4}[\s\-\.]?\d{3,4})|(\d{10})'
     )
@@ -136,23 +135,17 @@ def extract_basic_info(text):
     mobile = "Not Found"
     
     if phone_matches:
-        # Flatten the list of tuples from findall and clean up non-digit chars
         all_numbers = []
         for match in phone_matches:
-            # Join the captured groups, then strip non-essential characters
             potential_number = ''.join(match)
-            # Normalize to digits only, keeping the plus sign if present
             digits_only = re.sub(r'[^\d\+]', '', potential_number)
             
-            # Use only numbers that look like a mobile/phone (>= 10 digits or 10 digits preceded by +)
             if 10 <= len(digits_only.replace('+', '')) <= 15:
-                # Prioritize numbers that don't start with a '1' unless part of a country code
                 if digits_only.startswith('1') and len(digits_only) == 11:
                     all_numbers.append(digits_only)
                 elif not digits_only.startswith('1') and len(digits_only) >= 10:
                      all_numbers.append(digits_only)
         
-        # Take the first valid unique number found
         if all_numbers:
             mobile = all_numbers[0]
 
@@ -180,7 +173,7 @@ def fetch_yt_thumbnail(link):
     try:
         if "youtube.com/watch?v=" in link:
             video_id = link.split("v=")[-1].split("&")[0]
-        elif "youtu.be/" in link:
+        elif "youtu.be/" in link in link:
             video_id = link.split("youtu.be/")[-1].split("?")[0]
         else:
             raise ValueError("Invalid YouTube link format.")
@@ -226,21 +219,42 @@ def course_recommender(extracted_skills, role):
 
   return rec_course
 
+# UPDATED: This function is now less restrictive and scans until a major section header is found.
 def extract_relevant_sections(text):
-    skills_keywords = ["skills", "technical skills", "certifications"]
+    # Lowercase the section headers to find them more reliably
+    text_lower = text.lower()
+    
+    # Define keywords that start a section that contains skills/certs
+    start_keywords = ["skills", "technical skills", "certifications"]
+    
+    # Define keywords that stop the capture (major new section)
+    stop_keywords = ["education", "experience", "projects", "achievements", "visua"] 
+    # Added "visua" to catch "VISUAL & COMMUNICATION EXPERIENCE" 
+    
     lines = text.split('\n')
     filtered_lines = []
     capture = False
-
+    
     for line in lines:
-        if any(k in line.lower() for k in skills_keywords):
+        line_lower = line.lower().strip()
+        
+        # 1. Start capturing when a start keyword is hit
+        if any(k in line_lower for k in start_keywords) and not capture:
             capture = True
-        elif capture and (line.strip() == "" or len(line.strip()) < 3):
+        
+        # 2. Stop capturing when a stop keyword is hit
+        if any(k in line_lower for k in stop_keywords) and capture:
             capture = False
+            # If a stop keyword is hit, we break the loop entirely
+            break 
+            
+        # 3. Append the line if we are in capture mode
         if capture:
             filtered_lines.append(line)
 
-    return "\n".join(filtered_lines)
+    # If the text is empty after filtering (e.g., if there's no "Skills" header), 
+    # we return an empty string to be safe.
+    return "\n".join(filtered_lines).strip()
 
 
 def extract_skills(resume_text, skills_list):
@@ -258,6 +272,7 @@ def extract_skills(resume_text, skills_list):
 
     return sorted(list(extracted))
 
+# UPDATED: Using the more nuanced logic
 def determine_level(text, skills):
     import re
     from datetime import datetime
@@ -265,16 +280,23 @@ def determine_level(text, skills):
     text = text.lower()
     years = 0
 
+    # Find explicit years of experience (patterns remain the same)
     patterns = [r"(\d+)\s+years?\s+of\s+experience", r"experience\s+of\s+(\d+)\s+years?", r"(\d+)\s+years?\s+experience", r"(\d+)\s+yrs", r"(\d+)\+?\s+years"]
     for pattern in patterns:
         match = re.search(pattern, text)
         if match:
             years = int(match.group(1))
             break
-
-    if years >= 5 or len(skills) > 10:
+            
+    # New Logic Flow: Prioritize Years for Advanced, Cap Skills for Intermediate
+    if years >= 5:
         return "Advanced"
-    elif 2 <= years < 5 or 5 <= len(skills) <= 10:
+    elif 2 <= years < 5:
+        return "Intermediate"
+    elif len(skills) >= 10:
+        # If years is < 2, but skill count is very high, classify as Intermediate (High-Potential)
+        return "Intermediate"
+    elif len(skills) >= 5:
         return "Intermediate"
     else:
         return "Fresher"
@@ -441,11 +463,18 @@ def run():
 
                 if basic_info:
 
-                    # Dummy skills list for initial extraction
+                    # UPDATED: Expanded the base skills list to ensure better matching for the resume content
                     skills_list = [
-                        'Python', 'Java', 'SQL', 'Excel', 'Power BI', 'Git', 'HTML', 'CSS', 'JavaScript',
-                        'React.js', 'OOP', 'APIs', 'Unit Testing', 'Version Control', 'Agile', 'CI/CD',
-                        'Data Structures', 'Algorithms', 'Communication', 'CRM', 'Problem Solving'
+                        'Python', 'Java', 'SQL', 'Excel', 'Power BI', 'Pandas', 'NumPy', 'MS Office', 'Canva',
+                        'Poster Design', 'Social Media Content Creation', 'Event Photography', 'Short Video Editing', 
+                        'Video Editing', 'Content Writing', 'Data Cleaning', 'Data Visualization', 
+                        'Written Communication', 'Visual Storytelling', 'Content Planning', 'Social Media Analytics',
+                        'Creativity', 'Collaboration', 'Time Management', 'Adaptability', 'Attention to Detail',
+                        'English', 'Tamil', 'Git', 'HTML', 'CSS', 'JavaScript', 'React.js', 'OOP', 'APIs', 
+                        'Unit Testing', 'Version Control', 'Agile', 'CI/CD', 'Data Structures', 'Algorithms', 
+                        'Communication', 'CRM', 'Problem Solving', 'Machine Learning', 'NLP', 'Data Science',
+                        'GPT-4', 'TinyLLaMA', 'SpeechRecognition', 'gTTS', 'Power Query', 'DAX', 
+                        'NVIDIA', 'Deep Learning', 'IBM', 'Looker', 'Cisco', 'Data Analytics'
                     ]
                     relevant_text = extract_relevant_sections(resume_text)
                     extracted_skills = extract_skills(relevant_text if relevant_text else resume_text, skills_list)
@@ -457,7 +486,6 @@ def run():
                     required_skills = role_skills.get(role, [])
                     matched_skills, match_score, missing_skills = match_skills_for_role(extracted_skills, role)
                     
-                    # FIX: Correctly call determine_level with positional arguments
                     experience_level = determine_level(resume_text, extracted_skills) 
 
                     total_keywords = 20

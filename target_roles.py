@@ -2,7 +2,8 @@ target_roles_required_skills = {
     "Data Analyst": [
         "Python", "SQL", "Excel", "Power BI", "Statistics", "Tableau",
         "Data Cleaning", "Data Visualization", "Pandas", "NumPy", "ETL",
-        "Data Wrangling", "Machine Learning Basics", "Storytelling with Data"
+        "Data Wrangling", "Machine Learning", "Data Analytics", "Storytelling with Data",
+        "Power Query", "Looker", "DAX", "Communication", "Critical Thinking"
     ],
     "Software Developer": [
         "Python", "Java", "Git", "HTML", "CSS", "JavaScript", "OOP",
@@ -47,13 +48,12 @@ role_skills = target_roles_required_skills.copy()
 
 role_descriptions = {
     "Software Developer": "A Software Developer builds, tests, and maintains software applications using programming languages and development tools.",
-    "Data Analyst": "A Data Analyst interprets data and turns it into information which can offer ways to improve a business.",
+    "Data Analyst": "A Data Analyst interprets data and turns it into information which can offer ways to improve a business. The role requires strong technical skills in programming, databases, and visualization.",
     "Network Engineer": "A Network Engineer designs, implements, and maintains the infrastructure needed for network systems.",
     "Digital Marketing Specialist": "A Digital Marketing Specialist plans and executes online marketing strategies using SEO, content creation, and analytics tools.",
     "HR Associate": "An HR Associate handles recruitment, onboarding, employee records, and supports HR operations.",
     "Business Analyst": "A Business Analyst bridges the gap between IT and business, analyzing processes and systems to provide data-driven solutions.",
     "Customer Support Executive": "A Customer Support Executive assists customers by providing helpful information and resolving issues.",
     "Graphic Designer": "A Graphic Designer creates visual content using tools like Photoshop and Illustrator to communicate ideas effectively.",
-    
-}
 
+}
