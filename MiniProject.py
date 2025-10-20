@@ -114,22 +114,47 @@ def extract_basic_info(text):
             elif len(clean_line) > 2:
                 name = clean_line.title()
             break
-
-    # 1. Filter out lines containing common URL/social media keywords to prevent grabbing those digits
-    url_keywords = ["linkedin", "github", "portfolio", "http", "www"]
-    cleaned_lines = [line for line in lines if not any(kw in line.lower() for kw in url_keywords)]
-    cleaned_text = "\n".join(cleaned_lines)
-    
-    # 2. phone detection (better) - apply regex to the cleaned text
-    phone_match = re.search(
-        r'(\+?\d{1,3}[\s\-\.]?\(?\d{1,4}\)?[\s\-\.]?\d{3,4}[\s\-\.]?\d{3,4})|(\d{10})',
-        cleaned_text
+            
+    # 1. Phone Number Detection: Use a comprehensive regex to find potential matches
+    # This pattern covers (XXX) XXX-XXXX, XXX-XXX-XXXX, +X XXX XXX XXXX, and 10 digit sequences
+    phone_pattern = re.compile(
+        r'(\+?\d{1,3}[\s\-\.]?\(?\d{1,4}\)?[\s\-\.]?\d{3,4}[\s\-\.]?\d{3,4})|(\d{10})'
     )
-    mobile = next((g for g in phone_match.groups() if g), "Not Found") if phone_match else "Not Found"
-
-    # email
+    
+    # 2. Extract email separately to avoid mixing it with phone numbers
     email_match = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
     email = email_match.group() if email_match else "Not Found"
+
+    # 3. Clean text: remove emails and URLs (which often contain digits) before searching for phone
+    cleaned_text = re.sub(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", "", text) # Remove emails
+    cleaned_text = re.sub(r'(http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)', '', cleaned_text) # Remove common URLs
+    cleaned_text = re.sub(r'(www\.(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)', '', cleaned_text) # Remove www URLs
+
+    # 4. Search the cleaned text
+    phone_matches = phone_pattern.findall(cleaned_text)
+    
+    mobile = "Not Found"
+    
+    if phone_matches:
+        # Flatten the list of tuples from findall and clean up non-digit chars
+        all_numbers = []
+        for match in phone_matches:
+            # Join the captured groups, then strip non-essential characters
+            potential_number = ''.join(match)
+            # Normalize to digits only, keeping the plus sign if present
+            digits_only = re.sub(r'[^\d\+]', '', potential_number)
+            
+            # Use only numbers that look like a mobile/phone (>= 10 digits or 10 digits preceded by +)
+            if 10 <= len(digits_only.replace('+', '')) <= 15:
+                # Prioritize numbers that don't start with a '1' unless part of a country code
+                if digits_only.startswith('1') and len(digits_only) == 11:
+                    all_numbers.append(digits_only)
+                elif not digits_only.startswith('1') and len(digits_only) >= 10:
+                     all_numbers.append(digits_only)
+        
+        # Take the first valid unique number found
+        if all_numbers:
+            mobile = all_numbers[0]
 
     return {
         "name": name,
