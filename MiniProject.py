@@ -244,25 +244,22 @@ def extract_relevant_sections(text):
 
 
 def extract_skills(resume_text, skills_list):
-    # Normalize and lowercase everything
+    # Normalize and clean text
     text = unicodedata.normalize("NFKD", resume_text).encode("ascii", "ignore").decode("utf-8").lower()
-
-    # Replace punctuation and multiple spaces with single space
     text = re.sub(r"[^a-z0-9\s\+]", " ", text)
     text = re.sub(r"\s+", " ", text)
+    text_nospace = text.replace(" ", "")
 
     extracted = set()
-    text_nospace = text.replace(" ", "")  # remove spaces for fuzzy matching
-
     for skill in skills_list:
-        skill_low = skill.lower().strip()
-        skill_nospace = skill_low.replace(" ", "")
-        
-        # Match both spaced and unspaced versions (e.g. "power bi" or "powerbi")
-        if re.search(r"\b" + re.escape(skill_low) + r"\b", text) or skill_nospace in text_nospace:
+        s_low = skill.lower().strip()
+        s_nospace = s_low.replace(" ", "")
+        # Match either normal spaced or compact form
+        if re.search(r"\b" + re.escape(s_low) + r"\b", text) or s_nospace in text_nospace:
             extracted.add(skill)
 
     return sorted(list(extracted))
+
 # Function to determine experience level (Fresher, Intermediate, Advanced)
 def determine_level(text, skills):
     import re
@@ -432,7 +429,7 @@ def run():
 
                     relevant_text = extract_relevant_sections(resume_text)
                     extracted_skills = extract_skills(relevant_text if relevant_text else resume_text, skills_list)
-                    st.write("DEBUG - Found these in text:", extracted_skills[:30] if extracted_skills else "No skills found.")
+                    #st.write("DEBUG - Found these in text:", extracted_skills[:30] if extracted_skills else "No skills found.")
 
                     role = st.selectbox("Select Role for Analysis", list(target_roles_required_skills.keys()))
 
