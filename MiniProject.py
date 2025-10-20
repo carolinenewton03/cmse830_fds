@@ -225,23 +225,19 @@ def extract_relevant_sections(text):
 
 def extract_skills(resume_text, skills_list):
     # Clean and normalize text
-    cleaned_text = re.sub(r"[^\w\s+]", " ", resume_text).lower()
+    text = resume_text.lower()
+    text = re.sub(r'[^a-z0-9+.\s]', ' ', text)  # remove punctuation
 
-    # Create patterns only once per run
-    patterns = [nlp.make_doc(skill.lower()) for skill in skills_list]
-    matcher.add("Skills", patterns, on_match=None)
+    extracted = []
+    for skill in skills_list:
+        # Allow multi-word and case-insensitive matches
+        pattern = r'\b' + re.escape(skill.lower()) + r'\b'
+        if re.search(pattern, text):
+            extracted.append(skill)
 
-    # Parse resume
-    doc = nlp(cleaned_text)
-
-    # Extract unique matches
-    matches = matcher(doc)
-    extracted_skills = list(set([doc[start:end].text.strip() for match_id, start, end in matches]))
-
-    # Optional: print for debugging (remove after testing)
-    print(f"DEBUG - Extracted skills: {extracted_skills}")
-
-    return extracted_skills
+    # Remove duplicates and return
+    extracted = list(set(extracted))
+    return extracted
 
 # Function to determine experience level (Fresher, Intermediate, Advanced)
 def determine_level(text, skills):
