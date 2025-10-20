@@ -50,7 +50,7 @@ try:
 except OSError:
     st.warning(f"{model_name} not found. Please ensure it’s preinstalled.")
     nlp = None
-
+matcher = PhraseMatcher(nlp.vocab, attr="LOWER") 
 # Function to read and display PDF safely
 def show_pdf(file):
     # Read file and encode to base64
@@ -224,30 +224,24 @@ def extract_relevant_sections(text):
 
 
 def extract_skills(resume_text, skills_list):
-    # Convert all skills and resume text to lowercase for uniformity
-    resume_text = resume_text.lower()
-    skills_list = [skill.lower() for skill in skills_list]
+    # Clean and normalize text
+    cleaned_text = re.sub(r"[^\w\s+]", " ", resume_text).lower()
 
-    # Load Spacy model and initialize PhraseMatcher
-    nlp = spacy.load("en_core_web_sm")
-    matcher = PhraseMatcher(nlp.vocab)
+    # Create patterns only once per run
+    patterns = [nlp.make_doc(skill.lower()) for skill in skills_list]
+    matcher.add("Skills", patterns, on_match=None)
 
-    # Generate patterns for exact and alias matches
-    patterns = [nlp(skill) for skill in skills_list]
-    matcher.add("Skills", patterns)
+    # Parse resume
+    doc = nlp(cleaned_text)
 
-    # Remove special characters and clean text
-    resume_text = re.sub(r'[^\w\s+]', ' ', resume_text)  # Clean punctuation
-    doc = nlp(resume_text)
-
-    # Find matches
+    # Extract unique matches
     matches = matcher(doc)
     extracted_skills = list(set([doc[start:end].text.strip() for match_id, start, end in matches]))
 
-    # Debugging output to verify extracted skills
-    print(f"Extracted skills: {extracted_skills}")
-    return extracted_skills
+    # Optional: print for debugging (remove after testing)
+    print(f"DEBUG - Extracted skills: {extracted_skills}")
 
+    return extracted_skills
 
 # Function to determine experience level (Fresher, Intermediate, Advanced)
 def determine_level(text, skills):
@@ -388,7 +382,6 @@ def run():
             show_pdf(pdf_file)
             pdf_file.seek(0)
             resume_text = pdf_reader(pdf_file)
-            st.write("DEBUG: Extracted text preview:", resume_text[:500])
 
 
             if not is_resume(resume_text):
