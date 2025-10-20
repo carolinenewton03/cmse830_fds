@@ -239,7 +239,6 @@ def extract_skills(resume_text, skills_list):
             extracted.append(skill)
 
     return sorted(list(set(extracted)))
-st.write("DEBUG - Found these in text:", extract_skills[:30])
 
 
 # Function to determine experience level (Fresher, Intermediate, Advanced)
@@ -409,6 +408,8 @@ def run():
 
                     relevant_text = extract_relevant_sections(resume_text)
                     extracted_skills = extract_skills(relevant_text if relevant_text else resume_text, skills_list)
+                    st.write("DEBUG - Found these in text:", extracted_skills[:30] if extracted_skills else "No skills found.")
+
                     role = st.selectbox("Select Role for Analysis", list(target_roles_required_skills.keys()))
 
                     st.write(role_descriptions.get(role, f"No description available for **{role}**."))
