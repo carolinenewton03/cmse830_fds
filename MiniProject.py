@@ -69,7 +69,8 @@ def show_pdf(file):
     except Exception:
         pass
     base64_pdf = base64.b64encode(file.read()).decode('utf-8')
-    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
+    # Increased iframe height slightly for better viewing
+    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="800" type="application/pdf"></iframe>'
     st.markdown(pdf_display, unsafe_allow_html=True)
     try:
         file.seek(0)
@@ -253,7 +254,7 @@ def match_skills_for_role(extracted_skills, role):
     extracted_skills_normalized = [skill.lower() for skill in extracted_skills]
 
     matched_skills = [skill for skill in extracted_skills_normalized if skill in required_skills_normalized]
-    missing_skills = [skill for skill in required_skills_normalized if skill not in extracted_skills_normalized]
+    missing_skills = [skill for skill in required_skills_normalized if skill not in required_skills_normalized]
 
     matched_skills_original = [skill.capitalize() for skill in matched_skills]
     missing_skills_original = [skill.capitalize() for skill in missing_skills]
@@ -377,6 +378,15 @@ def run():
     if choice == 'Normal User':
         pdf_file = st.file_uploader("Choose your Resume", type=["pdf"])
         if pdf_file:
+            
+            # --------------------------------------------------------
+            # REQUIREMENT 1: Show PDF Preview immediately under drag-and-drop
+            # --------------------------------------------------------
+            st.subheader("Original PDF Document Preview")
+            show_pdf(pdf_file)
+            st.markdown("---")
+            # --------------------------------------------------------
+
             pdf_file.seek(0)
             resume_text = pdf_reader(pdf_file)
 
@@ -385,6 +395,15 @@ def run():
             else:
                 st.header("Resume Analysis")
                 st.success("Resume successfully read!")
+                
+                # --------------------------------------------------------
+                # REQUIREMENT 2: Show Extracted Text immediately after success message
+                # --------------------------------------------------------
+                st.subheader("Extracted Resume Text Preview")
+                st.text_area("Resume Text", value=resume_text, height=300, help="This is the raw text extracted from your PDF that the analyzer is using.")
+                st.markdown("---")
+                # --------------------------------------------------------
+
 
                 basic_info = extract_basic_info(resume_text)
 
@@ -445,18 +464,6 @@ def run():
 
                     timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
                     
-                    # --------------------------------------------------------
-                    # NEW REQUIREMENT: Re-insert Extracted Text and PDF Viewer
-                    # --------------------------------------------------------
-                    st.markdown("---")
-                    st.subheader("Extracted Resume Text Preview")
-                    st.text_area("Resume Text", value=resume_text, height=300, help="This is the raw text extracted from your PDF that the analyzer is using.")
-
-                    st.subheader("Original PDF Document")
-                    show_pdf(pdf_file)
-                    st.markdown("---")
-                    # --------------------------------------------------------
-
                     # ✅ Save data to Firestore
                     user_data = {
                         "Name": basic_info['name'],
