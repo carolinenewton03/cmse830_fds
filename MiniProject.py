@@ -244,18 +244,22 @@ def extract_relevant_sections(text):
 
 
 def extract_skills(resume_text, skills_list):
-    # Normalize text
+    # Normalize and lowercase everything
     text = unicodedata.normalize("NFKD", resume_text).encode("ascii", "ignore").decode("utf-8").lower()
-    text = re.sub(r'[^a-z0-9\s+]', ' ', text)
-    text = re.sub(r'\s+', ' ', text).strip()
+
+    # Replace punctuation and multiple spaces with single space
+    text = re.sub(r"[^a-z0-9\s\+]", " ", text)
+    text = re.sub(r"\s+", " ", text)
 
     extracted = set()
+    text_nospace = text.replace(" ", "")  # remove spaces for fuzzy matching
 
     for skill in skills_list:
-        skill_low = skill.lower().replace(" ", "")
-        # remove spaces from text for loose matching
-        text_no_space = text.replace(" ", "")
-        if skill_low in text_no_space:
+        skill_low = skill.lower().strip()
+        skill_nospace = skill_low.replace(" ", "")
+        
+        # Match both spaced and unspaced versions (e.g. "power bi" or "powerbi")
+        if re.search(r"\b" + re.escape(skill_low) + r"\b", text) or skill_nospace in text_nospace:
             extracted.add(skill)
 
     return sorted(list(extracted))
