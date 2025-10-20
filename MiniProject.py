@@ -115,12 +115,19 @@ def extract_basic_info(text):
                 name = clean_line.title()
             break
 
+    # 1. Filter out lines containing common URL/social media keywords to prevent grabbing those digits
+    url_keywords = ["linkedin", "github", "portfolio", "http", "www"]
+    cleaned_lines = [line for line in lines if not any(kw in line.lower() for kw in url_keywords)]
+    cleaned_text = "\n".join(cleaned_lines)
+    
+    # 2. phone detection (better) - apply regex to the cleaned text
     phone_match = re.search(
         r'(\+?\d{1,3}[\s\-\.]?\(?\d{1,4}\)?[\s\-\.]?\d{3,4}[\s\-\.]?\d{3,4})|(\d{10})',
-        text
+        cleaned_text
     )
     mobile = next((g for g in phone_match.groups() if g), "Not Found") if phone_match else "Not Found"
 
+    # email
     email_match = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
     email = email_match.group() if email_match else "Not Found"
 
@@ -254,7 +261,7 @@ def match_skills_for_role(extracted_skills, role):
     extracted_skills_normalized = [skill.lower() for skill in extracted_skills]
 
     matched_skills = [skill for skill in extracted_skills_normalized if skill in required_skills_normalized]
-    missing_skills = [skill for skill in required_skills_normalized if skill not in required_skills_normalized]
+    missing_skills = [skill for skill in required_skills_normalized if skill not in extracted_skills_normalized]
 
     matched_skills_original = [skill.capitalize() for skill in matched_skills]
     missing_skills_original = [skill.capitalize() for skill in missing_skills]
