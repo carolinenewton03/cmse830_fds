@@ -1,45 +1,114 @@
-Project Title
+📘 Smart Resume Analyser — End-to-End NLP + Streamlit Project
 
-Resume Analyzer App
+The Smart Resume Analyser is an AI-powered application that reads resumes, extracts key information, compares skills to job roles, identifies gaps, recommends courses, and provides visual insights.
+It is built with NLP, Python, spaCy, Plotly, and Streamlit, and includes an Admin Dashboard powered by real user activity logs.
 
-Why I Chose This Dataset / Idea
+⭐ Key Features
 
-I wanted to build a practical app that helps users analyze their resumes, identify missing skills, and receive personalized course recommendations. It combines elements of text analytics, machine learning, and data visualization—aligning well with both data science and computer science goals.
+PDF Resume Text Extraction
+Name, Email & Phone Number Parsing (supports international formats)
+Skill Extraction using spaCy + Keyword Matching
+Automatic Job Role Matching
+Skill Gap Detection
+Course Recommendations
+Resume Scoring (0-100)
+Experience Level Prediction
+Visual Insights (Gauge, Donut Chart, Heatmap)
+YouTube Resume + Interview Tips
+Admin Analytics Dashboard
 
-What I’ve Done So Far (IDA/EDA)
+App-Generated Dataset (user_data.csv)
 
-Collected and cleaned resume text data (via uploads).
+🗂 Data Sources (3 Total)
 
-Parsed resumes using Spacy for NLP.
+1️⃣ Self-Collected Resume Dataset
+Real resumes collected locally and converted into structured CSV format.
 
-Extracted skills and matched them with job roles.
+2️⃣ Kaggle Resume Dataset
+Public dataset added to diversify writing styles and job categories.
 
-Performed IDA/EDA on skill frequency and role trends.
+3️⃣ App-Generated Dataset
+Every resume analyzed in the app is appended to:
 
-Preprocessing Steps
+user_data.csv
+This powers the Admin Dashboard.
 
-Tokenized and cleaned text with Spacy.
+🔧 Data Cleaning & Processing
 
-Extracted structured features (skills, roles).
+Performed on all datasets:
+Cleaning missing values
+Removing duplicates
+Standardizing skill names
+Normalizing text
+Phone number unification
+Email extraction patterns
+Combining datasets for richer skill mapping
 
-Connected to MySQL for storing and retrieving user data.
+📊 Exploratory Data Analysis
 
-Added Streamlit input and visualization features.
+The following analyses were performed:
+Skill frequency distribution
+Resume length analysis
+Role-wise missing skill patterns
+Heatmaps
+Donut chart of matched/missing skills
+Gauge chart for resume score
 
-Progress So Far (Streamlit)
+🤖 NLP Resume Analysis Pipeline
 
-Built the core Streamlit app (MiniProject.py)
+Text Extraction (pdfplumber)
+Basic Info Detection
+Skill Extraction (spaCy PhraseMatcher + manual keyword rules)
+Experience Level Detection
+Resume Scoring System
+Best Role Suggestion
+Skill Gap Analysis
+Course Recommendations
 
-Enabled resume upload and skill extraction
+🎓 Course Recommendation Engine
 
-Implemented skill-gap analysis and course recommendations
+Based on missing skills, courses are recommended from:
+Data Science
+Web Dev
+Android
+iOS
+UI/UX
+Software Engineering
+Resume/Interview YouTube videos
 
-Admin panel for role and skill management
+🧭 Admin Dashboard
 
-Next Steps
+Admin panel displays:
+Total analyses
+Unique users
+Average resume score
+Most popular roles
+Most common missing skills
+CSV download
+All using live data from user_data.csv.
 
-Improve UI and responsiveness
+🚀 Tech Stack
 
-Integrate SQLite/remote DB for deployment
+Python
+Streamlit
+spaCy
+Pandas
+Plotly
+pdfplumber
+yt_dlp
+HTML/CSS Theming
+CSV as lightweight data store
 
-Add more advanced EDA charts
+🚀 Deployment
+
+The app runs on:
+Streamlit Cloud
+Local execution
+MongoDB support removed due to SSL issues; CSV logging is used for stability.
+
+📝 Future Improvements
+
+Add embeddings-based skill extraction
+Add ML job role classifier
+Add user login / personalized dashboard
+Add resume rewrite suggestions
