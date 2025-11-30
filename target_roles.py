@@ -40,7 +40,15 @@ target_roles_required_skills = {
     "Graphic Designer": [
         "Adobe Photoshop", "Adobe Illustrator", "Creativity", "Typography", "Color Theory",
         "Figma", "Canva", "UI Design", "Layout Design", "Branding", "Adobe XD", "Design Principles"
+    ],
+
+    "Cybersecurity Analyst": [
+    "network security", "vulnerability assessment", "penetration testing",
+    "nmap", "wireshark", "ids", "ips", "firewalls", "risk assessment",
+    "incident response", "siem", "splunk", "security monitoring",
+    "threat hunting", "kali linux", "ethical hacking", "mitre att&ck"
     ]
+
 }
 
 role_skills = target_roles_required_skills.copy()
