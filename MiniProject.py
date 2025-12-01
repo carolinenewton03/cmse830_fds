@@ -21,6 +21,7 @@ from Courses import (
     resume_videos,
     interview_videos,
 )
+from ML_EDA import render_ml_eda_page
 from target_roles import target_roles_required_skills, role_skills, role_descriptions
 from pymongo import MongoClient
 import unicodedata
@@ -631,7 +632,7 @@ def run():
     st.title("Smart Resume Analyser")
 
     st.sidebar.markdown("# Choose User")
-    activities = ["Normal User", "Admin"]
+    activities = ["Normal User", "Admin", "ML & EDA"]
     choice = st.sidebar.selectbox("Choose among the given options:", activities)
 
     st.sidebar.markdown("---")
@@ -948,9 +949,12 @@ def run():
         elif view == "Admin":
             render_admin_panel(user_collection)
 
+            # ---------- ML + EDA PAGE ----------
+        elif view == "ML & EDA":
+            render_ml_eda_page()
+
     except Exception as e:
         st.error(f"An application error occurred: {e}")
-
 
 if __name__ == "__main__":
     run()
