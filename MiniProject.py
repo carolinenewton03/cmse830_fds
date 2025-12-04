@@ -380,8 +380,9 @@ def display_skill_match_chart(match_score, missing_count, matched_count):
                 values=values,
                 hole=0.55,
                 marker_colors=colors,
-                textinfo="label+percent",
+                textinfo="percent",
                 hoverinfo="label+value+percent",
+                rotation=90,
             )
         ]
     )
@@ -396,7 +397,7 @@ def display_skill_match_chart(match_score, missing_count, matched_count):
             "font": {"color": THEME_TEXT},
         },
         height=350,
-        margin=dict(t=50, b=10, l=10, r=10),
+        margin=dict(t=50, b=10, l=30, r=30),
         paper_bgcolor=THEME_BG,
         plot_bgcolor=THEME_BG,
         font=dict(color=THEME_TEXT),
@@ -846,11 +847,15 @@ def run():
                                 st.success("You possess all target skills for this role!")
 
                         with col4:
+                            st.markdown("<div style='padding-left: 15px;'>", unsafe_allow_html=True)
                             display_skill_match_chart(
                                 match_score,
                                 len(missing_skills),
                                 len(matched_skills),
                             )
+                            st.markdown("</div>", unsafe_allow_html=True)
+
+
 
                         # =============================
                         # Skill Presence Heatmap
