@@ -1,67 +1,279 @@
-target_roles_required_skills = {
-    "Data Analyst": [
-        "Python", "SQL", "Excel", "Power BI", "Statistics", "Tableau",
-        "Data Cleaning", "Data Visualization", "Pandas", "NumPy", "ETL",
-        "Data Wrangling", "Machine Learning", "Data Analytics", "Storytelling with Data",
-        "Power Query", "Looker", "DAX", "Communication", "Critical Thinking"
-    ],
-    "Software Developer": [
-        "Python", "Java", "Git", "HTML", "CSS", "JavaScript", "OOP",
-        "APIs", "Unit Testing", "Version Control", "Agile", "SQL", "React.js",
-        "Debugging", "CI/CD", "Docker", "Problem Solving", "Data Structures", "Algorithms"
-    ],
-    "Network Engineer": [
-        "Networking", "Cisco", "Firewalls", "Troubleshooting", "TCP/IP",
-        "Routing", "Switching", "DNS", "DHCP", "Subnetting", "VPN", "Network Security",
-        "Wireshark", "LAN/WAN", "Active Directory"
-    ],
-    "Digital Marketing Specialist": [
-        "SEO", "Google Analytics", "Content Creation", "Social Media", "Email Marketing",
-        "Facebook Ads", "Instagram Marketing", "Google Ads", "Copywriting", "WordPress",
-        "CRM Tools", "A/B Testing", "Digital Strategy"
-    ],
-    "HR Associate": [
-        "Recruitment", "Excel", "Communication", "HRIS", "Onboarding",
-        "Payroll", "Employee Engagement", "Interviewing", "Performance Management",
-        "MS Office", "Conflict Resolution", "Compliance"
-    ],
-    "Business Analyst": [
-        "SQL", "Excel", "Business Process Modeling", "Presentation Skills",
-        "Critical Thinking", "Requirement Gathering", "UML", "Wireframing",
-        "Power BI", "Stakeholder Management", "JIRA", "Data Analysis", "Documentation"
-    ],
-    "Customer Support Executive": [
-    "Communication", "CRM", "Problem Solving", "Multitasking", "Empathy",
-    "Ticketing Tools", "Time Management", "Product Knowledge", "Live Chat",
-    "Email Etiquette", "Phone Support", "Patience",
-    "Zendesk", "Intercom", "Avaya", "SysAid", "Confluence", "Document360", "Upselling", "Training"
-    ],
-
-    "Graphic Designer": [
-        "Adobe Photoshop", "Adobe Illustrator", "Creativity", "Typography", "Color Theory",
-        "Figma", "Canva", "UI Design", "Layout Design", "Branding", "Adobe XD", "Design Principles"
-    ],
-
-    "Cybersecurity Analyst": [
-    "network security", "vulnerability assessment", "penetration testing",
-    "nmap", "wireshark", "ids", "ips", "firewalls", "risk assessment",
-    "incident response", "siem", "splunk", "security monitoring",
-    "threat hunting", "kali linux", "ethical hacking", "mitre att&ck"
-    ]
-
+# target_roles.py
+# -----------------------------
+# Role descriptions (shown in UI)
+# -----------------------------
+role_descriptions = {
+    "Data Analyst": (
+        "Data Analysts clean, transform, and analyze data to answer business questions. "
+        "They work heavily with SQL, spreadsheets, and BI tools to build reports and dashboards."
+    ),
+    "Data Scientist": (
+        "Data Scientists build statistical and machine learning models to solve complex problems. "
+        "They work with Python, SQL, ML libraries, and experimentation to derive actionable insights."
+    ),
+    "Machine Learning Engineer": (
+        "Machine Learning Engineers productionize ML models. They focus on scalable pipelines, "
+        "APIs, MLOps, and monitoring, combining ML knowledge with strong software engineering skills."
+    ),
+    "Software Engineer": (
+        "Software Engineers design, build, test, and maintain software systems. "
+        "They work extensively with programming languages, data structures, algorithms, "
+        "version control, and scalable application development."
+    ),
+    "Business Analyst": (
+        "Business Analysts translate business needs into data and system requirements. "
+        "They work with stakeholders, write specifications, and support decision-making using data."
+    ),
+    "Web Developer": (
+        "Web Developers build and maintain web applications using HTML, CSS, JavaScript, and frameworks. "
+        "They focus on responsive UI, APIs, performance, and browser compatibility."
+    ),
 }
 
-role_skills = target_roles_required_skills.copy()
+
+# -----------------------------
+# Full skill universe per role
+# (used for match %, missing skills, suggestions)
+# -----------------------------
+role_skills = {
+    "Data Analyst": [
+        # Core tools
+        "SQL",
+        "Excel",
+        "Google Sheets",
+        "Power BI",
+        "Tableau",
+        # Programming / data manipulation
+        "Python",
+        "R",
+        "Pandas",
+        "NumPy",
+        # Analytics / stats
+        "Statistics",
+        "Hypothesis Testing",
+        "A/B Testing",
+        "Data Cleaning",
+        "Data Wrangling",
+        "Exploratory Data Analysis",
+        # Visualization
+        "Data Visualization",
+        "Dashboarding",
+        # Extras
+        "ETL",
+        "Reporting",
+        "Business Intelligence",
+    ],
+    "Data Scientist": [
+        # Programming / data
+        "Python",
+        "R",
+        "SQL",
+        "Pandas",
+        "NumPy",
+        "SciPy",
+        # ML / modelling
+        "Machine Learning",
+        "Supervised Learning",
+        "Unsupervised Learning",
+        "Scikit-learn",
+        "TensorFlow",
+        "PyTorch",
+        "XGBoost",
+        "Model Evaluation",
+        "Cross Validation",
+        # Statistics / math
+        "Statistics",
+        "Probability",
+        "Linear Algebra",
+        "Optimization",
+        # Data prep / viz
+        "Data Cleaning",
+        "Feature Engineering",
+        "Data Visualization",
+        "Matplotlib",
+        "Seaborn",
+        # Extras
+        "NLP",
+        "Time Series",
+        "Experimentation",
+        "A/B Testing",
+        "Git",
+        "Version Control",
+    ],
+    "Machine Learning Engineer": [
+        # Programming / core
+        "Python",
+        "SQL",
+        "OOP",
+        "APIs",
+        "REST",
+        "Git",
+        "Version Control",
+        # ML stack
+        "Machine Learning",
+        "Deep Learning",
+        "Scikit-learn",
+        "TensorFlow",
+        "PyTorch",
+        "Model Serving",
+        # MLOps / infra
+        "MLOps",
+        "Docker",
+        "Kubernetes",
+        "CI/CD",
+        "ML Pipelines",
+        "Cloud Computing",
+        "AWS",
+        "GCP",
+        "Azure",
+        # Quality
+        "Unit Testing",
+        "Integration Testing",
+        "Monitoring",
+        "Logging",
+    ],
+    "Software Engineer": [
+        # Languages (software, not analyst junk)
+        "Python",
+        "Java",
+        "C++",
+        "JavaScript",
+        "TypeScript",
+        # Fundamentals
+        "Data Structures",
+        "Algorithms",
+        "Object Oriented Programming",
+        "OOP",
+        "Design Patterns",
+        "System Design",
+        # Web / backend
+        "APIs",
+        "REST",
+        "GraphQL",
+        "Databases",
+        "SQL",
+        "NoSQL",
+        # Tooling
+        "Git",
+        "Version Control",
+        "Linux",
+        "Unit Testing",
+        "Integration Testing",
+        "CI/CD",
+        "Docker",
+        "Debugging",
+        # Extras
+        "Agile",
+        "Scrum",
+        "Microservices",
+    ],
+    "Business Analyst": [
+        # Data tools
+        "Excel",
+        "Google Sheets",
+        "SQL",
+        "Power BI",
+        "Tableau",
+        # Analysis
+        "Data Analysis",
+        "Reporting",
+        "Dashboarding",
+        "Requirements Gathering",
+        "Process Mapping",
+        "Gap Analysis",
+        # Soft / domain skills (kept minimal)
+        "Stakeholder Management",
+        "Documentation",
+        "Business Requirements",
+        "Use Cases",
+        "User Stories",
+    ],
+    "Web Developer": [
+        # Core web
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "TypeScript",
+        # Frontend frameworks
+        "React",
+        "Angular",
+        "Vue.js",
+        # Styling / UI
+        "Responsive Design",
+        "Bootstrap",
+        "Tailwind CSS",
+        # Backend basics
+        "APIs",
+        "REST",
+        "Node.js",
+        "Express",
+        "Databases",
+        "SQL",
+        # Tooling
+        "Git",
+        "Version Control",
+        "Webpack",
+        "Vite",
+        # Quality
+        "Unit Testing",
+        "Debugging",
+        "Performance Optimization",
+    ],
+}
 
 
-role_descriptions = {
-    "Software Developer": "A Software Developer builds, tests, and maintains software applications using programming languages and development tools.",
-    "Data Analyst": "A Data Analyst interprets data and turns it into information which can offer ways to improve a business. The role requires strong technical skills in programming, databases, and visualization.",
-    "Network Engineer": "A Network Engineer designs, implements, and maintains the infrastructure needed for network systems.",
-    "Digital Marketing Specialist": "A Digital Marketing Specialist plans and executes online marketing strategies using SEO, content creation, and analytics tools.",
-    "HR Associate": "An HR Associate handles recruitment, onboarding, employee records, and supports HR operations.",
-    "Business Analyst": "A Business Analyst bridges the gap between IT and business, analyzing processes and systems to provide data-driven solutions.",
-    "Customer Support Executive": "A Customer Support Executive assists customers by providing helpful information and resolving issues.",
-    "Graphic Designer": "A Graphic Designer creates visual content using tools like Photoshop and Illustrator to communicate ideas effectively.",
-
+# -----------------------------
+# Core / must-have skills per role
+# (used for stronger eligibility checks)
+# -----------------------------
+target_roles_required_skills = {
+    "Data Analyst": [
+        "SQL",
+        "Excel",
+        "Power BI",
+        "Tableau",
+        "Data Cleaning",
+        "Data Visualization",
+        "Statistics",
+    ],
+    "Data Scientist": [
+        "Python",
+        "SQL",
+        "Machine Learning",
+        "Statistics",
+        "Pandas",
+        "NumPy",
+        "Scikit-learn",
+    ],
+    "Machine Learning Engineer": [
+        "Python",
+        "Machine Learning",
+        "APIs",
+        "Docker",
+        "Git",
+        "CI/CD",
+    ],
+    "Software Engineer": [
+        "Python",      # OR Java / C++ – we just treat any of these as strong signal
+        "Java",
+        "C++",
+        "Data Structures",
+        "Algorithms",
+        "OOP",
+        "Git",
+    ],
+    "Business Analyst": [
+        "Excel",
+        "SQL",
+        "Power BI",
+        "Requirements Gathering",
+        "Stakeholder Management",
+    ],
+    "Web Developer": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "React",   # or other modern framework, but React is the default
+        "Git",
+    ],
 }
