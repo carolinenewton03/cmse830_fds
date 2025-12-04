@@ -363,16 +363,17 @@ def display_score_gauge(score):
 def display_skill_match_chart(match_score, missing_count, matched_count):
     total = matched_count + missing_count
     if total == 0:
-        st.warning("No tar  get skills defined for this role.")
+        st.warning("No target skills defined for this role.")
         return
 
+    # Percent values
     missing_score = 100 - match_score
     labels = ["Matched Skills", "Missing Skills"]
     values = [match_score, missing_score]
 
-    # use neon-ish colors
-    # use distinct colors for donut
-    colors = [COLOR_TERTIARY, COLOR_QUATERNARY]  # matched = lavender, missing = mint
+    # Colors (lavender for matched, mint for missing)
+    colors = [COLOR_TERTIARY, COLOR_QUATERNARY]
+
     fig = go.Figure(
         data=[
             go.Pie(
@@ -380,9 +381,15 @@ def display_skill_match_chart(match_score, missing_count, matched_count):
                 values=values,
                 hole=0.55,
                 marker_colors=colors,
-                textinfo="percent",
+                textinfo="percent",          # show only percent inside
+                textfont=dict(
+                    color="#1A1A1A",        # <-- darker color (almost black)
+                    size=18,                # bigger = more readable
+                    family="Arial"          # clean readable font
+                ),
+                insidetextorientation="horizontal",
                 hoverinfo="label+value+percent",
-                rotation=90,
+                showlegend=True,
             )
         ]
     )
@@ -390,17 +397,25 @@ def display_skill_match_chart(match_score, missing_count, matched_count):
     fig.update_layout(
         title={
             "text": "Skill Match Breakdown",
-            "y": 0.9,
+            "y": 0.92,
             "x": 0.5,
             "xanchor": "center",
             "yanchor": "top",
             "font": {"color": THEME_TEXT},
         },
         height=350,
-        margin=dict(t=50, b=10, l=30, r=30),
+        margin=dict(t=60, b=40, l=10, r=10),
         paper_bgcolor=THEME_BG,
         plot_bgcolor=THEME_BG,
         font=dict(color=THEME_TEXT),
+
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.05,
+            xanchor="center",
+            x=0.5
+        ),
     )
 
     st.plotly_chart(fig, use_container_width=True)
