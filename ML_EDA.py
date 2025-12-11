@@ -550,7 +550,7 @@ def train_and_evaluate_models(
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    log_reg = LogisticRegression(max_iter=1000, multi_class="auto")
+    log_reg = LogisticRegression(max_iter=1000)
     log_reg.fit(X_train_scaled, y_train)
 
     y_pred_lr = log_reg.predict(X_test_scaled)
