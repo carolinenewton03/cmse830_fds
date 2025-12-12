@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import plotly.express as px
-
+from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -57,6 +57,7 @@ def engineer_features(df_raw: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     - matching_score_num (numeric version of "85%" style matching_score)
     - actual_skills_count (how many skills we extracted from the resume)
     - recommended_skills_count (how many skills we recommended)
+    - missing_skills_count + skill_coverage_ratio (advanced FE)
     - email provider dummies (gmail / yahoo / outlook / other)
 
     If some inputs are missing, we fall back to 'all numeric columns except targets'.
@@ -106,6 +107,17 @@ def engineer_features(df_raw: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     if recommended_skills_series is not None:
         df["recommended_skills_count"] = recommended_skills_series
 
+    # --- advanced FE: skill gap features ---
+    if "actual_skills_count" in df.columns and "recommended_skills_count" in df.columns:
+        df["missing_skills_count"] = (
+            df["recommended_skills_count"] - df["actual_skills_count"]
+        ).clip(lower=0)
+
+        df["skill_coverage_ratio"] = (
+            df["actual_skills_count"]
+            / df["recommended_skills_count"].replace(0, np.nan)
+        )
+
     # --- email provider dummies (gmail / yahoo / outlook / other) ---
     email_provider_cols: list[str] = []
     if "Email" in df.columns:
@@ -119,21 +131,21 @@ def engineer_features(df_raw: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
             df[col_name] = (df["email_provider"] == prov).astype(int)
             email_provider_cols.append(col_name)
 
-        # All non-top providers grouped as "other"
         df["email_other"] = (~df["email_provider"].isin(top_providers)).astype(int)
         email_provider_cols.append("email_other")
 
-    # Collect preferred feature columns if they exist
     preferred_features = [
         "resume_score",
         "matching_score_num",
         "actual_skills_count",
         "recommended_skills_count",
+        "missing_skills_count",
+        "skill_coverage_ratio",
     ]
+
     feature_cols = [c for c in preferred_features if c in df.columns]
     feature_cols.extend(email_provider_cols)
 
-    # Fallback: if we still have nothing, use all numeric columns except obvious targets / IDs
     if not feature_cols:
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         exclude = {"Page_no", "User_level", "Predicted_Field"}
@@ -148,366 +160,161 @@ def engineer_features(df_raw: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
 def render_eda_section(df: pd.DataFrame):
     st.header("🔍 Exploratory Data Analysis on user_data.csv")
 
-    st.markdown(
-        """
-        This section helps us understand **who is using the system** and **how their resumes look**
-        before we ever touch machine learning.
-
-        We focus on:
-        - Typical ranges of scores and counts (summary table)
-        - How key metrics evolve over time (multi-line timeline)
-        - How many skills are usually detected per resume
-        - Which roles and experience levels are most common
-        - How the numeric features relate to each other (correlation heatmap)
-        """
-    )
-
-    # ---- Basic numeric summary ----
-    st.subheader("📋 Basic Summary of Numeric Features")
-    st.markdown(
-        """
-        This table shows basic statistics for all numeric features in the dataset:
-        - **Count** of records
-        - **Typical values** (mean, median via percentiles)
-        - **Spread** of the data (standard deviation, min, max)
-
-        We use this to quickly catch impossible values, extreme outliers,
-        or features that barely vary across users.
-        """
-    )
-
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-
-    # Drop Page_no here as well, since it's basically constant and not informative
     if "Page_no" in numeric_cols:
         numeric_cols.remove("Page_no")
 
+    # ---- Summary table ----
+    st.subheader("📋 Basic Summary of Numeric Features")
     if numeric_cols:
         desc = df[numeric_cols].describe().T
-        st.dataframe(desc)
+        st.dataframe(desc, use_container_width=True)
 
-        # --- Data-driven conclusion for summary ---
-        conclusions = []
         if "resume_score" in desc.index:
-            rs_row = desc.loc["resume_score"]
-            conclusions.append(
-                f"Typical resume scores are around **{rs_row['mean']:.1f}** "
-                f"(median ≈ {rs_row['50%']:.1f}), ranging from {rs_row['min']:.1f} to {rs_row['max']:.1f}."
-            )
-        if "matching_score_num" in desc.index:
-            ms_row = desc.loc["matching_score_num"]
-            conclusions.append(
-                f"Matching scores center around **{ms_row['mean']:.1f}%**, "
-                f"with most users between roughly {ms_row['25%']:.1f}% and {ms_row['75%']:.1f}%."
-            )
-        if "actual_skills_count" in desc.index:
-            sc_row = desc.loc["actual_skills_count"]
-            conclusions.append(
-                f"On average, resumes expose **{sc_row['mean']:.1f} skills**, "
-                f"with most users between {sc_row['25%']:.1f} and {sc_row['75%']:.1f} skills."
+            med = desc.loc["resume_score", "50%"]
+            q25 = desc.loc["resume_score", "25%"]
+            q75 = desc.loc["resume_score", "75%"]
+            st.markdown(
+                f"**Data-driven conclusion:** Typical `resume_score` is around **{med:.1f}** "
+                f"(IQR **{q25:.1f}–{q75:.1f}**)."
             )
 
-        if conclusions:
-            st.markdown(
-                "**Data-driven conclusion:**<br>"
-                + "<br>".join(f"- {c}" for c in conclusions),
-                unsafe_allow_html=True,
-            )
-    else:
-        st.info("No numeric columns available for summary stats.")
     st.markdown("---")
 
-    # ---- 1. Multi-line timeline: Resume Score + Matching Score + Skill Count ----
+    # ---- Timeline ----
     if "Timestamp" in df.columns:
-        st.subheader(
-            "📈 Trends Over Time – Resume Score, Matching Score, Skill Count (Daily Avg)"
-        )
-
-        st.markdown(
-            """
-            This chart shows how **three key metrics** change over time:
-
-            - `resume_score` – overall quality of the resume
-            - `matching_score_num` – how well the resume matches the selected role
-            - `actual_skills_count` – how many skills are actually detected from the resume
-
-            For each day, we compute the **average** of each metric and plot them together.
-            """
-        )
+        st.subheader("📈 Trends Over Time")
 
         df_ts = df.copy()
         df_ts["Timestamp"] = pd.to_datetime(df_ts["Timestamp"], errors="coerce")
         df_ts = df_ts.dropna(subset=["Timestamp"])
 
         if not df_ts.empty:
-            df_ts["day_label"] = df_ts["Timestamp"].dt.strftime("%b %d")
+            df_ts["day"] = df_ts["Timestamp"].dt.date
+            metrics = [c for c in ["resume_score", "matching_score_num", "actual_skills_count"] if c in df_ts.columns]
 
-            metric_candidates = [
-                "resume_score",
-                "matching_score_num",
-                "actual_skills_count",
-            ]
-            metrics = [m for m in metric_candidates if m in df_ts.columns]
+            daily = df_ts.groupby("day")[metrics].mean().reset_index()
+            fig = px.line(daily, x="day", y=metrics, markers=True)
+            st.plotly_chart(fig, use_container_width=True)
 
-            if metrics:
-                daily = df_ts.groupby("day_label", as_index=False)[metrics].mean()
+            if len(daily) >= 2 and all(m in daily.columns for m in metrics):
+                rs_diff = daily["resume_score"].iloc[-1] - daily["resume_score"].iloc[0] if "resume_score" in daily else np.nan
+                ms_diff = daily["matching_score_num"].iloc[-1] - daily["matching_score_num"].iloc[0] if "matching_score_num" in daily else np.nan
+                sc_diff = daily["actual_skills_count"].iloc[-1] - daily["actual_skills_count"].iloc[0] if "actual_skills_count" in daily else np.nan
 
-                long_df = daily.melt(
-                    id_vars="day_label",
-                    value_vars=metrics,
-                    var_name="Metric",
-                    value_name="Value",
-                )
-
-                fig_multi = px.line(
-                    long_df,
-                    x="day_label",
-                    y="Value",
-                    color="Metric",
-                    markers=True,
-                    labels={"day_label": "Day", "Value": "Average Value"},
-                )
-                fig_multi.update_layout(xaxis={"type": "category"})
-                st.plotly_chart(fig_multi, use_container_width=True)
-
-                # --- Data-driven conclusion for timeline ---
-                trend_lines = []
-                for m in metrics:
-                    if len(daily) >= 2:
-                        start = daily[m].iloc[0]
-                        end = daily[m].iloc[-1]
-                        diff = end - start
-                        if abs(diff) < 0.5:
-                            direction = "roughly **stable**"
-                        elif diff > 0:
-                            direction = f"**increasing** by about {diff:.1f} points"
-                        else:
-                            direction = f"**decreasing** by about {abs(diff):.1f} points"
-                        trend_lines.append(f"- `{m}` is {direction} from the first to the latest day.")
-                if trend_lines:
-                    st.markdown(
-                        "**Data-driven conclusion:**<br>"
-                        + "<br>".join(trend_lines),
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.info(
-                    "No metric columns (resume_score / matching_score_num / actual_skills_count) "
-                    "available to plot over time."
-                )
-        else:
-            st.info("Not enough valid timestamp data to plot trends over time.")
-    else:
-        st.info("Timestamp column not found, so time trends cannot be plotted.")
+                parts = []
+                if not np.isnan(rs_diff):
+                    parts.append(f"`resume_score` Δ **{rs_diff:.1f}**")
+                if not np.isnan(ms_diff):
+                    parts.append(f"`matching_score_num` Δ **{ms_diff:.1f}**")
+                if not np.isnan(sc_diff):
+                    parts.append(f"`actual_skills_count` Δ **{sc_diff:.1f}**")
+                st.markdown("**Data-driven conclusion:** " + ", ".join(parts) + " (first → last day).")
 
     st.markdown("---")
 
-    # ---- 2. Distribution of Extracted Skill Counts (violin / box) ----
-    skill_count_col = None
-    for candidate in ["actual_skills_count", "Actual_skills_count", "Extracted_skill_count"]:
-        if candidate in df.columns:
-            skill_count_col = candidate
-            break
-
-    if skill_count_col:
+    # ---- Skill count distribution ----
+    if "actual_skills_count" in df.columns:
         st.subheader("🧠 Distribution of Extracted Skill Counts")
+        fig = px.violin(df, y="actual_skills_count", box=True, points="all")
+        st.plotly_chart(fig, use_container_width=True)
 
+        q1, q3 = df["actual_skills_count"].quantile([0.25, 0.75])
         st.markdown(
-            f"""
-            This chart shows how many skills are **detected per resume** based on `{skill_count_col}`.
-
-            - Wider sections of the violin indicate more resumes with that skill count.
-            - Long tails indicate some resumes have **very few** or **very many** skills.
-            """
-        )
-
-        fig_violin = px.violin(
-            df,
-            y=skill_count_col,
-            box=True,
-            points="all",
-            labels={skill_count_col: "Number of Extracted Skills"},
-        )
-        st.plotly_chart(fig_violin, use_container_width=True)
-
-        # --- Data-driven conclusion for skills distribution ---
-        sc = df[skill_count_col].dropna()
-        if not sc.empty:
-            q1, q3 = sc.quantile([0.25, 0.75])
-            st.markdown(
-                f"**Data-driven conclusion:**<br>"
-                f"- Most resumes expose between **{q1:.0f} and {q3:.0f} skills**.<br>"
-                f"- The minimum is {sc.min():.0f} and the maximum is {sc.max():.0f}, "
-                f"showing {'a wide' if sc.max()-sc.min()>5 else 'a fairly tight'} spread in skill density.",
-                unsafe_allow_html=True,
-            )
-    else:
-        st.info(
-            "No skill-count column found (e.g., actual_skills_count) for the distribution chart."
+            f"**Data-driven conclusion:** Most resumes have `actual_skills_count` between **{q1:.0f}–{q3:.0f}** "
+            f"(tails indicate very few or very many extracted skills)."
         )
 
     st.markdown("---")
 
-    # ---- 3. Role Distribution (Predicted_Field) ----
+    # ---- Role distribution ----
     if "Predicted_Field" in df.columns:
-        st.subheader("📌 Role Distribution (Predicted_Field)")
-
-        st.markdown(
-            """
-            This bar chart shows how many users are mapped to each **predicted job role**
-            (e.g., Data Scientist, Data Analyst, ML Engineer).
-            """
-        )
-
+        st.subheader("📌 Role Distribution")
         role_counts = df["Predicted_Field"].value_counts().reset_index()
-        role_counts.columns = ["Predicted_Field", "Count"]
+        role_counts.columns = ["Role", "Count"]
 
-        fig_role = px.bar(
-            role_counts,
-            x="Predicted_Field",
-            y="Count",
-            labels={"Predicted_Field": "Predicted Role", "Count": "Number of Users"},
-        )
-        fig_role.update_layout(xaxis={"categoryorder": "total descending"})
-        st.plotly_chart(fig_role, use_container_width=True)
+        fig = px.bar(role_counts, x="Role", y="Count")
+        st.plotly_chart(fig, use_container_width=True)
 
-        # --- Data-driven conclusion for role distribution ---
-        total_users = role_counts["Count"].sum()
-        top_role = role_counts.iloc[0]
-        pct = 100 * top_role["Count"] / total_users if total_users > 0 else 0
+        top = role_counts.iloc[0]
+        pct = 100 * top["Count"] / role_counts["Count"].sum()
         st.markdown(
-            f"**Data-driven conclusion:**<br>"
-            f"- The most common predicted role is **{top_role['Predicted_Field']}**, "
-            f"covering about **{pct:.1f}%** of users.<br>"
-            f"- This indicates that most users are currently targeting this role or have skills aligned to it.",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.info("Column 'Predicted_Field' not found, so role distribution cannot be shown.")
-
-    st.markdown("---")
-
-    # ---- 4. Experience vs Role (User_level x Predicted_Field) ----
-    if "Predicted_Field" in df.columns and "User_level" in df.columns:
-        st.subheader("📊 Experience Level vs Predicted Role")
-
-        st.markdown(
-            """
-            This grouped bar chart compares **experience level** and **predicted role**.
-            """
-        )
-
-        cross_tab = (
-            df.groupby(["Predicted_Field", "User_level"])
-            .size()
-            .reset_index(name="Count")
-        )
-
-        fig_exp_role = px.bar(
-            cross_tab,
-            x="Predicted_Field",
-            y="Count",
-            color="User_level",
-            barmode="group",
-            labels={
-                "Predicted_Field": "Predicted Role",
-                "User_level": "Experience Level",
-                "Count": "Number of Users",
-            },
-        )
-        st.plotly_chart(fig_exp_role, use_container_width=True)
-
-        # --- Data-driven conclusion for experience vs role ---
-        lvl_counts = df["User_level"].value_counts()
-        main_level = lvl_counts.idxmax()
-        main_pct = 100 * lvl_counts.max() / lvl_counts.sum()
-        st.markdown(
-            f"**Data-driven conclusion:**<br>"
-            f"- Overall, **{main_level}** is the most common experience level "
-            f"(about **{main_pct:.1f}%** of users).<br>"
-            f"- Any roles where Beginners dominate may need clearer skill thresholds, "
-            f"while roles dominated by senior levels may indicate more advanced users.",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.info(
-            "Columns 'Predicted_Field' and/or 'User_level' not found for experience vs role chart."
+            f"**Data-driven conclusion:** Most users align with `Predicted_Field = {top['Role']}` "
+            f"(~**{pct:.1f}%** of records)."
         )
 
     st.markdown("---")
 
-    # ---- 5. Correlation Heatmap ----
-    st.subheader("🧬 Correlation Between Numeric Features")
+    # ---- Experience vs role ----
+    if {"User_level", "Predicted_Field"}.issubset(df.columns):
+        st.subheader("📊 Experience Level vs Role")
 
-    st.markdown(
-        """
-        This heatmap shows the **correlation** between numeric variables such as scores,
-        skill counts, and other numeric features.
-        """
-    )
+        cross = df.groupby(["Predicted_Field", "User_level"]).size().reset_index(name="Count")
+        fig = px.bar(cross, x="Predicted_Field", y="Count", color="User_level", barmode="group")
+        st.plotly_chart(fig, use_container_width=True)
 
-    corr_df = df.select_dtypes(include=[np.number]).copy()
+        dominant = df["User_level"].value_counts().idxmax()
+        st.markdown(
+            f"**Data-driven conclusion:** `User_level = {dominant}` is the most common experience group in the dataset."
+        )
 
-    # Drop obviously useless ones if present
-    for col in ["Page_no"]:
-        if col in corr_df.columns:
-            corr_df = corr_df.drop(columns=[col])
+    st.markdown("---")
 
-    # Drop columns that are entirely NaN
-    corr_df = corr_df.dropna(axis=1, how="all")
+    # ---- Correlation heatmap ----
+    st.subheader("🧬 Correlation Heatmap")
+    corr_df = df.select_dtypes(include=[np.number]).dropna(axis=1, how="all")
 
     if corr_df.shape[1] >= 2:
-        corr = corr_df.corr(numeric_only=True)
+        corr = corr_df.corr()
+        fig = px.imshow(corr, text_auto=True)
+        st.plotly_chart(fig, use_container_width=True)
 
-        fig_corr = px.imshow(
-            corr,
-            text_auto=True,
-            aspect="auto",
-            labels={"x": "Features", "y": "Features", "color": "Correlation"},
-        )
-        st.plotly_chart(fig_corr, use_container_width=True)
-
-        # --- Data-driven conclusion for correlations ---
-        msgs = []
-        def corr_msg(a: str, b: str):
-            if a in corr.index and b in corr.columns:
-                val = corr.loc[a, b]
-                strength = "weak"
-                if abs(val) >= 0.7:
-                    strength = "strong"
-                elif abs(val) >= 0.4:
-                    strength = "moderate"
-                direction = "positive" if val >= 0 else "negative"
-                return f"- `{a}` and `{b}` have a **{strength} {direction} correlation** (~{val:.2f})."
-            return None
-
-        for pair in [
-            ("resume_score", "matching_score_num"),
-            ("resume_score", "actual_skills_count"),
-            ("matching_score_num", "actual_skills_count"),
-        ]:
-            msg = corr_msg(*pair)
-            if msg:
-                msgs.append(msg)
-
-        if msgs:
+        if "resume_score" in corr.columns and "matching_score_num" in corr.columns:
+            val = corr.loc["resume_score", "matching_score_num"]
             st.markdown(
-                "**Data-driven conclusion:**<br>" + "<br>".join(msgs),
-                unsafe_allow_html=True,
+                f"**Data-driven conclusion:** `resume_score` and `matching_score_num` correlation ≈ **{val:.2f}**."
             )
-    else:
-        st.info("Not enough numeric columns to compute a useful correlation heatmap.")
 
 
 # -----------------------------
 # ML models section
 # -----------------------------
+@st.cache_resource
+def fit_models_cached(X_train, y_train, feature_cols_tuple, use_gridsearch: bool):
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+
+    lr = LogisticRegression(max_iter=1000)
+    lr.fit(X_train_scaled, y_train)
+
+    rf = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)
+    rf.fit(X_train, y_train)
+
+    return scaler, lr, rf
+
+
+@st.cache_resource
+def run_gridsearch_rf(X_train, y_train):
+    base_rf = RandomForestClassifier(random_state=42, n_jobs=-1)
+    param_grid = {
+        "n_estimators": [200, 400],
+        "max_depth": [None, 10, 20],
+        "min_samples_split": [2, 5],
+    }
+    grid = GridSearchCV(
+        base_rf,
+        param_grid=param_grid,
+        cv=3,
+        n_jobs=-1,
+        scoring="accuracy",
+    )
+    grid.fit(X_train, y_train)
+    return grid.best_estimator_, grid.best_params_
+
+
 def train_and_evaluate_models(
     df_ml: pd.DataFrame, feature_cols: list[str], target_col: str
 ):
-    """
-    Train Logistic Regression and Random Forest models and display evaluation metrics.
-    """
     st.markdown(
         f"""
         ### 🔧 Training ML Models (Target = `{target_col}`)
@@ -524,7 +331,6 @@ def train_and_evaluate_models(
     )
 
     data = df_ml.dropna(subset=feature_cols + [target_col]).copy()
-
     if data.empty:
         st.error("No valid rows after dropping NaNs for selected features and target.")
         return
@@ -532,11 +338,10 @@ def train_and_evaluate_models(
     X = data[feature_cols]
     y = data[target_col]
 
-    # Encode target if it's categorical text
     if y.dtype == "object":
         y = y.astype("category")
-        class_names = list(y.cat.categories)  # full list of possible classes
-        y_encoded = y.cat.codes  # 0,1,2,...
+        class_names = list(y.cat.categories)
+        y_encoded = y.cat.codes
     else:
         y_encoded = y
         class_names = sorted(list(np.unique(y_encoded)))
@@ -545,7 +350,7 @@ def train_and_evaluate_models(
         X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
     )
 
-    # ---- Logistic Regression ----
+    # Logistic Regression
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
@@ -556,18 +361,15 @@ def train_and_evaluate_models(
     y_pred_lr = log_reg.predict(X_test_scaled)
     acc_lr = (y_pred_lr == y_test).mean()
 
-    # ---- Random Forest ----
-    rf = RandomForestClassifier(
-        n_estimators=200,
-        random_state=42,
-        n_jobs=-1,
-    )
-    rf.fit(X_train, y_train)
+    # Random Forest (GridSearch)
+    st.markdown("#### 🌲 Random Forest (with hyperparameter tuning)")
+    rf, best_params = run_gridsearch_rf(X_train, y_train)
+    st.write("Best RF params:", best_params)
 
     y_pred_rf = rf.predict(X_test)
     acc_rf = (y_pred_rf == y_test).mean()
 
-    # ---- Show accuracy comparison ----
+    # Accuracy comparison
     st.markdown("#### 📊 Model Accuracy Comparison")
     acc_df = pd.DataFrame(
         {
@@ -588,18 +390,11 @@ def train_and_evaluate_models(
         """
     )
 
-    # ---- Prepare labels/target names (avoid mismatch bug) ----
-    present_classes = np.unique(y_test)  # only classes that actually appear in test set
+    present_classes = np.unique(y_test)
+    present_names = [str(class_names[i]) for i in present_classes] if class_names else [str(c) for c in present_classes]
 
-    if class_names:
-        # Map encoded int -> original category name, but only for present classes
-        present_names = [str(class_names[i]) for i in present_classes]
-    else:
-        present_names = [str(c) for c in present_classes]
-
-    # ---- Logistic Regression report (tabulated) ----
+    # Logistic report
     st.markdown("#### 📄 Detailed Classification Report – Logistic Regression")
-
     lr_report_dict = classification_report(
         y_test,
         y_pred_lr,
@@ -623,42 +418,8 @@ def train_and_evaluate_models(
     )
     st.dataframe(df_lr_report, use_container_width=True)
 
-    # data-driven text for LR
-    try:
-        lr_macro_f1 = float(
-            df_lr_report.loc[df_lr_report["Class"] == "macro avg", "F1-score"].iloc[0]
-        )
-    except Exception:
-        lr_macro_f1 = np.nan
-    worst_lr_row = (
-        df_lr_report[df_lr_report["Class"].isin(present_names)]
-        .sort_values("F1-score")
-        .iloc[0]
-        if not df_lr_report.empty
-        else None
-    )
-
-    lr_conclusions = []
-    if not np.isnan(lr_macro_f1):
-        lr_conclusions.append(
-            f"- Overall macro F1 for Logistic Regression is **{lr_macro_f1:.2f}**, "
-            f"which summarizes balance across all classes."
-        )
-    if worst_lr_row is not None:
-        lr_conclusions.append(
-            f"- The weakest class for Logistic Regression is **{worst_lr_row['Class']}** "
-            f"(F1 ≈ {float(worst_lr_row['F1-score']):.2f}); this class is harder to predict."
-        )
-    if lr_conclusions:
-        st.markdown(
-            "**Data-driven conclusion (Logistic Regression):**<br>"
-            + "<br>".join(lr_conclusions),
-            unsafe_allow_html=True,
-        )
-
-    # ---- Random Forest report (tabulated) ----
+    # RF report
     st.markdown("#### 📄 Detailed Classification Report – Random Forest")
-
     rf_report_dict = classification_report(
         y_test,
         y_pred_rf,
@@ -682,57 +443,12 @@ def train_and_evaluate_models(
     )
     st.dataframe(df_rf_report, use_container_width=True)
 
-    # data-driven text for RF
-    try:
-        rf_macro_f1 = float(
-            df_rf_report.loc[df_rf_report["Class"] == "macro avg", "F1-score"].iloc[0]
-        )
-    except Exception:
-        rf_macro_f1 = np.nan
-    worst_rf_row = (
-        df_rf_report[df_rf_report["Class"].isin(present_names)]
-        .sort_values("F1-score")
-        .iloc[0]
-        if not df_rf_report.empty
-        else None
-    )
-
-    rf_conclusions = []
-    if not np.isnan(rf_macro_f1):
-        rf_conclusions.append(
-            f"- Overall macro F1 for Random Forest is **{rf_macro_f1:.2f}**."
-        )
-    if worst_rf_row is not None:
-        rf_conclusions.append(
-            f"- The weakest class for Random Forest is **{worst_rf_row['Class']}** "
-            f"(F1 ≈ {float(worst_rf_row['F1-score']):.2f})."
-        )
-    if not np.isnan(lr_macro_f1) and not np.isnan(rf_macro_f1):
-        better = "Random Forest" if rf_macro_f1 >= lr_macro_f1 else "Logistic Regression"
-        rf_conclusions.append(
-            f"- Comparing macro F1, **{better}** handles class balance better on this dataset."
-        )
-    if rf_conclusions:
-        st.markdown(
-            "**Data-driven conclusion (Random Forest):**<br>"
-            + "<br>".join(rf_conclusions),
-            unsafe_allow_html=True,
-        )
-
-    # ---- Confusion Matrix for the better model ----
+    # Confusion Matrix (best model)
     better_model_name = "Random Forest" if acc_rf >= acc_lr else "Logistic Regression"
     st.markdown(f"#### 🔀 Confusion Matrix – Best Model ({better_model_name})")
 
-    if better_model_name == "Random Forest":
-        cm = confusion_matrix(y_test, y_pred_rf, labels=present_classes)
-    else:
-        cm = confusion_matrix(y_test, y_pred_lr, labels=present_classes)
-
-    cm_df = pd.DataFrame(
-        cm,
-        index=present_names,
-        columns=present_names,
-    )
+    cm = confusion_matrix(y_test, y_pred_rf if better_model_name == "Random Forest" else y_pred_lr, labels=present_classes)
+    cm_df = pd.DataFrame(cm, index=present_names, columns=present_names)
 
     fig_cm = px.imshow(
         cm_df,
@@ -748,40 +464,30 @@ def train_and_evaluate_models(
     st.markdown(
         f"""
         **Data-driven conclusion (Confusion Matrix):**
-        - The best model correctly classifies about **{acc_cm:.2%}** of examples (diagonal entries).
-        - Any large off-diagonal cells indicate systematic confusions between specific classes
-          that may need more data or clearer feature separation.
+        - The best model correctly classifies about **{acc_cm:.2%}** of examples.
         """
     )
 
-    # ---- Feature importances from Random Forest ----
+    # Feature importances
     st.markdown("#### 🧩 Feature Importance (Random Forest)")
-
     importances = rf.feature_importances_
-    imp_df = pd.DataFrame(
-        {"Feature": feature_cols, "Importance": importances}
-    ).sort_values("Importance", ascending=False)
+    imp_df = pd.DataFrame({"Feature": feature_cols, "Importance": importances}).sort_values("Importance", ascending=False)
 
-    fig_imp = px.bar(
-        imp_df,
-        x="Feature",
-        y="Importance",
-        labels={"Importance": "Relative Importance"},
-    )
+    fig_imp = px.bar(imp_df, x="Feature", y="Importance", labels={"Importance": "Relative Importance"})
     st.plotly_chart(fig_imp, use_container_width=True)
 
     top_feats = imp_df.head(3)
-    feat_lines = [
-        f"- **{row['Feature']}** (importance ~ {row['Importance']:.2f})"
-        for _, row in top_feats.iterrows()
-    ]
+    top_feats = imp_df.head(3)
+
+    feat_summary = ", ".join(
+        [
+            f"`{row['Feature']}` (≈ {row['Importance']:.2f})"
+            for _, row in top_feats.iterrows()
+        ]
+    )
 
     st.markdown(
-        "**Data-driven conclusion (Feature Importance):**<br>"
-        + "<br>".join(feat_lines)
-        + "<br>- These features drive most of the model's decisions; "
-          "features with near-zero importance could be dropped without much impact.",
-        unsafe_allow_html=True,
+        f"**Data-driven conclusion (Feature Importance):** Most influential features are {feat_summary}."
     )
 
 
@@ -799,9 +505,7 @@ def render_ml_section(df_ml: pd.DataFrame, feature_cols: list[str]):
         """
     )
 
-    # Choose which target to predict
     possible_targets: list[str] = []
-
     if "User_level" in df_ml.columns:
         possible_targets.append("User_level")
     if "Predicted_Field" in df_ml.columns:
@@ -811,54 +515,16 @@ def render_ml_section(df_ml: pd.DataFrame, feature_cols: list[str]):
         st.error("No suitable target columns (User_level / Predicted_Field) found.")
         return
 
-    st.markdown(
-        """
-        **Step 1 – Choose the Target**
-
-        This decides what the ML model is trying to learn:
-        - `User_level`: classify users as Beginner / Intermediate / Expert (or similar).
-        - `Predicted_Field`: classify users into roles like Data Scientist, Data Analyst, etc.
-        """
-    )
     target_col = st.selectbox("Target variable", options=possible_targets)
 
-    st.markdown(
-        """
-        **Step 2 – Features Going into the Model**
-
-        These are the columns we give to the model as inputs (`X`). 
-        They might include:
-        - Resume score and matching score
-        - How many skills were detected / recommended
-        - Email provider flags (gmail / yahoo / outlook / other)
-        """
-    )
+    st.markdown("**Features used (X):**")
     st.write(feature_cols)
-
-    st.markdown(
-        """
-        **Step 3 – Train & Evaluate**
-
-        When you click the button below:
-        1. The data is split into **train** and **test** sets.
-        2. Two models (Logistic Regression & Random Forest) are trained on the train set.
-        3. We evaluate them on the unseen test set and compare:
-           - Overall accuracy
-           - Per-class precision/recall/F1
-           - Confusion matrix
-           - Feature importances (Random Forest)
-        """
-    )
 
     if st.button("🚀 Train & Evaluate Models"):
         train_and_evaluate_models(df_ml, feature_cols, target_col)
 
 
-# -----------------------------
-# Main entry for the ML + EDA page
-# -----------------------------
 def render_ml_eda_page():
-    """Main entry for the ML + EDA page."""
     st.title("📊 ML & EDA – Learning from user_data.csv")
 
     df_raw = load_user_data()
@@ -869,7 +535,6 @@ def render_ml_eda_page():
 
     tab_eda, tab_ml = st.tabs(["📊 EDA", "🤖 ML Models"])
 
-    # Use engineered df for EDA so we get matching_score_num, skill counts, etc.
     with tab_eda:
         render_eda_section(df_ml)
 

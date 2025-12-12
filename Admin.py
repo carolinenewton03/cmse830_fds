@@ -18,6 +18,7 @@ def render_admin_panel(user_collection=None):
 
     try:
         df = pd.read_csv(DATA_PATH)
+        df_all = df.copy()
     except Exception as e:
         st.error(f"Could not read data file: {e}")
         return
@@ -105,23 +106,142 @@ def render_admin_panel(user_collection=None):
         csv = filtered.to_csv(index=False).encode("utf-8")
         st.download_button("⬇ Download CSV", csv, "admin_resume_data.csv", "text/csv")
 
-    with tab2:
-        st.subheader("Score Distribution")
-        if "resume_score" in filtered.columns:
-            fig1 = px.histogram(filtered, x="resume_score", nbins=10,
-                                title="Distribution of Resume Scores")
-            st.plotly_chart(fig1, use_container_width=True)
+        with tab2:
+            st.subheader("📈 Resume Analyses Over Time")
+            st.markdown("""
+            This chart shows how many resume analyses were performed each day using the `Timestamp` field.
+            It helps track user engagement and activity trends over time.
+            """)
+            if "Timestamp" in df_all.columns:
+                ts = df_all.copy()
+                ts["Timestamp"] = pd.to_datetime(ts["Timestamp"], errors="coerce")
+                ts = ts.dropna(subset=["Timestamp"])
 
-        st.subheader("Average Match % by Role")
-        if "matching_score_num" in filtered.columns and "Predicted_Field" in filtered.columns:
-            agg = filtered.groupby("Predicted_Field")["matching_score_num"].mean().reset_index()
-            fig2 = px.bar(agg, x="matching_score_num", y="Predicted_Field",
-                          orientation="h", title="Avg Skill Match by Role",
-                          labels={"matching_score_num": "Match %", "Predicted_Field": "Role"})
-            st.plotly_chart(fig2, use_container_width=True)
+                if not ts.empty:
+                    ts["Date"] = ts["Timestamp"].dt.date
+
+                    daily_counts = (
+                        ts.groupby("Date")
+                        .size()
+                        .reset_index(name="Analyses")
+                        .sort_values("Date")
+                    )
+
+                    fig_ts = px.line(
+                        daily_counts,
+                        x="Date",
+                        y="Analyses",
+                        markers=True,
+                        title="Number of Resume Analyses per Day"
+                    )
+                    st.plotly_chart(fig_ts, use_container_width=True)
+                    if not daily_counts.empty:
+                        first = int(daily_counts["Analyses"].iloc[0])
+                        last = int(daily_counts["Analyses"].iloc[-1])
+                        peak_row = daily_counts.loc[daily_counts["Analyses"].idxmax()]
+                        peak_day = peak_row["Date"]
+                        peak_val = int(peak_row["Analyses"])
+                        st.markdown(f"""
+                    **Data-driven conclusion:**
+                    - Daily activity changed from **{first}** to **{last}** analyses (Δ = **{last-first}**).
+                    - Peak usage was on **{peak_day}** with **{peak_val}** analyses.
+                    """)
+
+                else:
+                    st.info("Not enough valid timestamp data to plot time series.")
+            else:
+                st.info("Timestamp column not found.")
+
+            st.subheader("Score Distribution")
+            st.markdown("""
+            This histogram shows the distribution of `resume_score` across the filtered users.
+            It helps identify the typical score range and spot low/high outliers.
+            """)
+
+            if "resume_score" in filtered.columns:
+                fig1 = px.histogram(
+                    filtered,
+                    x="resume_score",
+                    nbins=10,
+                    title="Distribution of Resume Scores"
+                )
+                st.plotly_chart(fig1, use_container_width=True)
+                q25 = filtered["resume_score"].quantile(0.25)
+                med = filtered["resume_score"].median()
+                q75 = filtered["resume_score"].quantile(0.75)
+                st.markdown(f"""
+                **Data-driven conclusion:**
+                - Median resume score is **{med:.1f}**.
+                - Most users fall between **{q25:.1f}** and **{q75:.1f}** (IQR range).
+                """)
+
+            else:
+                st.info("resume_score column not found.")
+
+            st.subheader("Average Match % by Role")
+            st.markdown("""
+            This bar chart compares the **average skill match percentage** across roles.
+            It highlights which roles users align with best and where the biggest skill gaps exist.
+            """)
+
+            if "matching_score_num" in filtered.columns and "Predicted_Field" in filtered.columns:
+                agg = filtered.groupby("Predicted_Field")["matching_score_num"].mean().reset_index()
+                fig2 = px.bar(
+                    agg,
+                    x="matching_score_num",
+                    y="Predicted_Field",
+                    orientation="h",
+                    title="Avg Skill Match by Role",
+                    labels={"matching_score_num": "Match %", "Predicted_Field": "Role"}
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+                if not agg.empty:
+                    top = agg.sort_values("matching_score_num", ascending=False).iloc[0]
+                    bot = agg.sort_values("matching_score_num", ascending=True).iloc[0]
+                    st.markdown(f"""
+                **Data-driven conclusion:**
+                - Highest average match: **{top['Predicted_Field']}** (~**{top['matching_score_num']:.1f}%**)
+                - Lowest average match: **{bot['Predicted_Field']}** (~**{bot['matching_score_num']:.1f}%**)
+                """)
+
+            else:
+                st.info("Required columns not found for role-wise match plot.")
+
+            st.subheader("📦 Resume Score by Experience Level")
+            st.markdown("""
+            This box plot compares resume score distributions across experience levels.
+            It shows medians, spread, and outliers to understand how resume quality varies by seniority.
+            """)
+
+            if "resume_score" in filtered.columns and "User_level" in filtered.columns:
+                fig_box = px.box(
+                    filtered,
+                    x="User_level",
+                    y="resume_score",
+                    points="all",
+                    title="Resume Score Distribution Across Experience Levels",
+                    labels={"User_level": "Experience Level", "resume_score": "Resume Score"},
+                )
+                st.plotly_chart(fig_box, use_container_width=True)
+                med_by_level = filtered.groupby("User_level")["resume_score"].median().sort_values(ascending=False)
+                best_level = med_by_level.index[0]
+                best_val = med_by_level.iloc[0]
+                st.markdown(f"""
+                **Data-driven conclusion:**
+                - Highest median resume score is for **{best_level}** (**{best_val:.1f}**).
+                """)
+
+            else:
+                st.info("Required columns not found for box plot.")
+
 
     with tab3:
         st.subheader("Top 5 Missing Skills (All Users)")
+        st.markdown("""
+        This section aggregates missing skills across users by comparing `Recommended_skills` vs `Actual_skills`.
+        It helps identify the most common training gaps.
+        """)
+
         if "Recommended_skills" in df.columns and "Actual_skills" in df.columns:
             from collections import Counter
 
@@ -135,6 +255,9 @@ def render_admin_panel(user_collection=None):
             top_missing = Counter(all_missing).most_common(5)
             for skill, count in top_missing:
                 st.markdown(f"- **{skill}** — {count} users")
+            total_missing = len(all_missing)
+            st.markdown(f"**Data-driven conclusion:** Total missing-skill instances found across users: **{total_missing}**.")
+
 
         else:
             st.info("Missing skill data not available.")
